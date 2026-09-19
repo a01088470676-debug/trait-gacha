@@ -43,7 +43,7 @@
      requestAnimationFrame 루프는 릴 하나에 하나만 돈다. */
   function itemEl(e) {
     const d = document.createElement('div');
-    d.className = 'item' + (e.pending ? ' pending' : '') + (e.res ? ' res' : '');
+    d.className = 'item' + (e.res ? ' res' : '');
     d.dataset.l = e.level;
     d.style.setProperty('--c', tierVar(e.level));
     const pip = document.createElement('i'); pip.className = 'pip';
@@ -151,26 +151,25 @@
   async function spinAndReveal(res, quick, auto) {
     if (!reel.spinning) reel.start(fastSpeed()); else reel.setSpeed(fastSpeed(), 200);
     const T = TG.TRAIT_TIERS[res.tier.id];
-    if (T.reveal === 'reel') {
-      // 기본 · 커먼 · 언커먼: 감속 → 결과 칸에 멈춤(아직 흐릿함) → 잠깐 정지 → 릴 안에서 공개
+    if (T.reveal === 'reel' || (quick && res.level < 3)) {
+      // 기본 · 커먼 (10회 뽑기에서는 언커먼까지): 감속 → 결과 칸에 멈춤 → 릴 위에서 공개
       await pause(quick ? 160 : 420);
-      const item = await reel.stopAt({ name: res.name, level: res.level, pending: true }, quick ? 560 : 1250 + res.level * 120);
+      const item = await reel.stopAt({ name: res.name, level: res.level }, quick ? 560 : 1250 + res.level * 120);
       audio.land();
-      await pause(quick ? 60 : 140);
-      if (skipping) { item.classList.remove('pending'); item.classList.add('res'); }
+      if (skipping) item.classList.add('res');
       else await fx.playReelReveal(res, item, quick);
       markResult(res);
       setPlate(res);
       return;
     }
-    // 레어 이상: 느려지면서 주변 조명이 바뀌고, 릴은 뒤에서 계속 돌며 화면 중앙에서 공개
+    // 언커먼 이상: 느려지면서 주변 조명이 바뀌고, 릴은 뒤에서 계속 돌며 화면 중앙에서 공개
     await pause(quick ? 160 : 380);
     reel.setSpeed(cruiseSpeed(), quick ? 700 : 1100);
     fx.setAnticipation(res.level);
     await pause((quick ? 700 : 1100) + (quick ? 0 : T.fx.hold));
     reel.quiet = true;
     if (!skipping) {
-      await fx.playStage(res);
+      await fx.playStage(res, quick);
       setPlate(res);
       await fx.waitDismiss({ auto });
     }

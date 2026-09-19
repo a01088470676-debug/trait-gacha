@@ -1,6 +1,6 @@
 /* 등급 색과 등급별 표시: 점(pip) · 칩 · 릴 결과 · 결과판 · 확률표 · 설정 행 · 기록 · 10회 결과 카드 */
 :root{
-  --t0:#a3a8b0; --t1:#e9edf3; --t2:#62d69b; --t3:#5ea6ff; --t4:#a980ff; --t5:#e6b85c; --t6:#f2f2f2;
+  --t0:#a3a8b0; --t1:#e9edf3; --t2:#62d69b; --t3:#5cc8ff; --t4:#a980ff; --t5:#ffb43a; --t6:#f2f2f2;
   /* 신화는 색 대신 검정/하양 */
   --mythic-split:linear-gradient(90deg,#050505 50%,#f5f5f5 50%);
 }
@@ -9,8 +9,7 @@
 [data-l="6"] .pip{background:var(--mythic-split);box-shadow:0 0 0 1px rgba(255,255,255,.45)}
 .item .pip{width:calc(var(--item-h) * .12);height:calc(var(--item-h) * .12)}
 
-/* 릴 안의 결과: 공개 전에는 흐릿하게, 공개 뒤에는 등급 색이 은은하게 */
-.item.pending .nm{opacity:.16;filter:blur(5px)}
+/* 릴 안의 결과: 등급 색이 은은하게 */
 .item.res[data-l="1"] .nm{color:color-mix(in srgb,var(--reelText) 70%,#fff)}
 .item.res[data-l="2"] .nm{color:color-mix(in srgb,var(--t2) 55%,var(--reelText))}
 .item.res[data-l="3"] .nm,.item.res[data-l="4"] .nm,.item.res[data-l="5"] .nm{color:color-mix(in srgb,var(--c) 62%,var(--reelText))}

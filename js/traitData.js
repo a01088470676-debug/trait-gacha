@@ -22,18 +22,19 @@
   };
 
   /* ---------- 등급 ----------
-     reveal: 'reel'  = 릴이 결과에 멈춘 뒤 릴 안에서 조용히 공개
+     reveal: 'reel'  = 릴이 결과에 멈춘 뒤 릴 위에서 공개
              'stage' = 릴은 뒤에서 계속 돌고, 화면 중앙 무대에서 공개
+             (10회 뽑기에서는 흐름이 끊기지 않게 언커먼까지 'reel'로 짧게 보여 준다)
      fx.hold    = 회전이 느려진 뒤 무대가 열리기까지 더 기다리는 시간(ms)
      fx.autoNext = 10회 뽑기에서 자동으로 다음으로 넘어가는 시간(ms), null이면 눌러야 넘어감 */
   const TRAIT_TIERS = {
-    basic:     { level: 0, ko: '기본',     en: 'BASIC',     color: '#a3a8b0', reveal: 'reel',  desc: '연출: 이름이 조용히 선명해져요',                 fx: {} },
-    common:    { level: 1, ko: '커먼',     en: 'COMMON',    color: '#e9edf3', reveal: 'reel',  desc: '연출: 얇은 빛과 작은 흰 빛 입자',                fx: {} },
-    uncommon:  { level: 2, ko: '언커먼',   en: 'UNCOMMON',  color: '#62d69b', reveal: 'reel',  desc: '연출: 녹색 빛이 은은하게 퍼져요',                fx: {} },
-    rare:      { level: 3, ko: '레어',     en: 'RARE',      color: '#5ea6ff', reveal: 'stage', desc: '연출: 푸른 빛의 선이 이름을 가르며 지나가요',     fx: { hold: 0,   autoNext: 1400 } },
-    epic:      { level: 4, ko: '에픽',     en: 'EPIC',      color: '#a980ff', reveal: 'stage', desc: '연출: 보랏빛이 모이고 정교한 문양이 떠올라요',   fx: { hold: 250, autoNext: 1600 } },
-    legendary: { level: 5, ko: '레전더리', en: 'LEGENDARY', color: '#e6b85c', reveal: 'stage', desc: '연출: 암전 · 금빛 문양 · 화면 밖으로 뻗는 빛의 선', fx: { hold: 450, autoNext: 1800 } },
-    mythic:    { level: 6, ko: '신화',     en: 'MYTHIC',    color: '#f2f2f2', reveal: 'stage', desc: '연출: ??? 직접 뽑아서 확인하세요',               fx: { hold: 650, autoNext: null } },
+    basic:     { level: 0, ko: '기본',     en: 'BASIC',     color: '#a3a8b0', reveal: 'reel',  desc: '연출: 없음 (이름만 표시)',                                         fx: {} },
+    common:    { level: 1, ko: '커먼',     en: 'COMMON',    color: '#e9edf3', reveal: 'reel',  desc: '연출: 작은 별들이 이름 주변을 두 바퀴 돌고 날아가요',               fx: {} },
+    uncommon:  { level: 2, ko: '언커먼',   en: 'UNCOMMON',  color: '#62d69b', reveal: 'stage', desc: '연출: 흰 별이 2바퀴 돌며 초록으로 차오르고 반짝, 별 2개가 이름 주변을 돌아요', fx: { hold: 0,   autoNext: 1200 } },
+    rare:      { level: 3, ko: '레어',     en: 'RARE',      color: '#5cc8ff', reveal: 'stage', desc: '연출: 흰 별 3바퀴 → 하늘색 → 조각나며 사라지고, 이름이 한 획씩 채워져요', fx: { hold: 0,   autoNext: 1400 } },
+    epic:      { level: 4, ko: '에픽',     en: 'EPIC',      color: '#a980ff', reveal: 'stage', desc: '연출: 흰 별 4바퀴 → 보라 → 점점 빨라지다 흰 화면, 마법진과 은하수',      fx: { hold: 250, autoNext: 1600 } },
+    legendary: { level: 5, ko: '레전더리', en: 'LEGENDARY', color: '#ffb43a', reveal: 'stage', desc: '연출: 흰 별 5바퀴 → 노랑·주황 → 금이 가다 깨지고, 파편이 이름 주변을 돌아요', fx: { hold: 450, autoNext: 1800 } },
+    mythic:    { level: 6, ko: '신화',     en: 'MYTHIC',    color: '#f2f2f2', reveal: 'stage', desc: '연출: ??? 직접 뽑아서 확인하세요',                                 fx: { hold: 650, autoNext: null } },
   };
   const TIERS = Object.entries(TRAIT_TIERS)
     .map(([id, t]) => Object.assign({ id }, t))
