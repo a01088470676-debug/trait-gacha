@@ -1,0 +1,108 @@
+/* 뽑기 연출 전용 스타일.
+   원칙: 효과의 수가 아니라 타이밍과 형태로 희귀함을 표현한다. 무지개 · 폭죽 · 색종이는 쓰지 않는다. */
+
+/* ---------- 회전 중 전조: 주변 조명 ---------- */
+.ambient-glow{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;transition:opacity 1.2s ease,filter 1.2s ease;background:radial-gradient(55% 50% at 50% 40%,color-mix(in srgb,var(--amb,#fff) 45%,transparent),transparent 72%)}
+.ambient-veil{position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity 1s ease;background:radial-gradient(75% 70% at 50% 42%,rgba(0,0,0,.08),rgba(0,0,0,.86))}
+/* 신화: 세상에서 색이 빠져나간다 */
+html.fx-mono .bg,html.fx-mono .ambient-glow,html.fx-mono .stage{filter:grayscale(1) brightness(.8)}
+
+/* ---------- 파티클 캔버스 (작은 빛 입자만) ---------- */
+.fx-canvas{position:fixed;inset:0;z-index:45;width:100%;height:100%;pointer-events:none}
+
+/* ---------- 릴 안 연출 (기본 · 커먼 · 언커먼) ---------- */
+.win-fx-back,.win-fx{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.win-fx-back{z-index:0}
+.win-fx{z-index:4}
+.row-fx{position:absolute;left:0;right:0;top:var(--item-h);height:var(--item-h)}
+.row-sweep{background:linear-gradient(100deg,transparent 32%,var(--sw) 50%,transparent 68%);mix-blend-mode:screen}
+.row-line{top:calc(var(--item-h) * 1.5);height:1px;left:16%;right:16%;background:linear-gradient(90deg,transparent,var(--lc) 30%,var(--lc) 70%,transparent)}
+.row-glow{top:calc(var(--item-h) * .35);height:calc(var(--item-h) * 2.3);background:radial-gradient(46% 38% at 50% 50%,color-mix(in srgb,var(--gc) 26%,transparent),transparent 78%)}
+.row-ring{left:50%;right:auto;top:calc(var(--item-h) * 1.5);width:calc(var(--item-h) * 2.4);height:calc(var(--item-h) * 2.4);border-radius:50%;background:radial-gradient(circle,transparent 58%,color-mix(in srgb,var(--gc) 50%,transparent) 64%,transparent 70%)}
+
+/* ---------- 연출 무대 (레어 이상) ---------- */
+.fx-stage{
+  --tc:#fff;
+  position:fixed;inset:0;z-index:40;overflow:hidden;perspective:1200px;outline:none;
+  background:rgba(5,6,10,0);transition:background-color .5s ease;
+  -webkit-user-select:none;user-select:none;cursor:default;
+}
+.fx-stage::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .6s ease;background:radial-gradient(ellipse 70% 65% at 50% 50%,transparent 35%,rgba(0,0,0,.72) 100%)}
+.fx-stage.dim{background:rgba(5,6,10,.9)}
+.fx-stage.dim::before{opacity:1}
+.fx-stage.t-rare{--tc:#5ea6ff}
+.fx-stage.t-epic{--tc:#a980ff;--sc:rgba(214,196,255,.78)}
+.fx-stage.t-epic.dim{background:rgba(6,4,12,.93)}
+.fx-stage.t-legend{--tc:#e6b85c;--sc:rgba(240,208,140,.82)}
+.fx-stage.t-legend.black{transition:none;background:#050403}
+.fx-stage.t-mythic{--tc:#f2f2f2}
+.fx-stage.t-mythic.dim{background:#0c0c0e;transition:background-color .9s ease}
+.fx-stage.t-mythic::before{display:none}
+
+.fx-layer{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
+.fx-namebox{position:relative;z-index:2;max-width:min(90vw,1000px);padding-inline:12px;text-align:center}
+.fx-name{position:relative;z-index:1;font-family:var(--fx-font);font-weight:700;font-size:clamp(32px,6vw,78px);line-height:1.22;letter-spacing:.08em;color:#f5f6f8;text-wrap:balance;overflow-wrap:anywhere}
+.t-rare .fx-name{color:#eef5ff;text-shadow:0 0 22px rgba(94,166,255,.3)}
+.t-epic .fx-name{color:#f6f0ff;text-shadow:0 0 24px rgba(169,128,255,.34)}
+.t-legend .fx-name{color:#fff4dc;text-shadow:0 0 20px rgba(230,184,92,.32)}
+.fx-ghost,.fx-sweep{position:absolute;inset:0 12px;z-index:2;pointer-events:none}
+.fx-sweep{color:transparent;text-shadow:none;background:linear-gradient(100deg,transparent 42%,var(--sw) 50%,transparent 58%) 150% 0/260% 100% no-repeat;-webkit-background-clip:text;background-clip:text;opacity:0}
+
+/* 레어: 빛의 선 */
+.fx-hline{position:absolute;left:50%;top:50%;z-index:0;width:min(84vw,1000px);height:1px;transform:translate(-50%,-50%);background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--tc) 85%,#fff) 28%,#fff 50%,color-mix(in srgb,var(--tc) 85%,#fff) 72%,transparent)}
+.fx-vline{position:absolute;left:0;top:-22%;z-index:3;width:2px;height:144%;margin-left:-1px;background:linear-gradient(to bottom,transparent,#d6e8ff 22%,#fff 50%,#d6e8ff 78%,transparent);box-shadow:0 0 12px 1px rgba(94,166,255,.5)}
+.fx-ring{position:absolute;left:50%;top:50%;width:min(64vmin,540px);aspect-ratio:1;border-radius:50%;border:1px solid color-mix(in srgb,var(--tc) 65%,#fff);transform:translate(-50%,-50%)}
+
+/* 에픽: 모이는 빛 · 문양 */
+.fx-orb{position:absolute;left:50%;top:50%;width:min(80vmin,640px);aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(closest-side,color-mix(in srgb,var(--tc) 30%,transparent),color-mix(in srgb,var(--tc) 8%,transparent) 55%,transparent)}
+.fx-pin{position:absolute;left:50%;top:50%;z-index:3;width:24px;height:24px;border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(closest-side,#fff,color-mix(in srgb,var(--tc) 55%,#fff) 40%,transparent)}
+.fx-sigil{position:absolute;left:50%;top:50%;z-index:0;transform:translate(-50%,-50%);overflow:visible}
+.fx-sigil path{fill:none;stroke:var(--sc)}
+
+/* 레전더리: 낮은 금빛 · 이동하는 선 · 화면 밖으로 뻗는 빛 */
+.fx-lowglow{position:absolute;left:50%;top:50%;width:min(96vw,1100px);height:min(36vh,300px);border-radius:50%;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(230,184,92,.26),rgba(230,184,92,.07) 60%,transparent)}
+.fx-travel{position:absolute;left:50%;top:50%;z-index:0;width:min(92vw,1100px);height:1px;transform:translate(-50%,-50%);background:linear-gradient(90deg,transparent,rgba(230,184,92,.5) 20%,rgba(255,236,190,.8) 50%,rgba(230,184,92,.5) 80%,transparent)}
+.fx-travel-spark{position:absolute;left:0;top:50%;width:150px;height:3px;margin:-1.5px 0 0 -75px;background:radial-gradient(closest-side,#fff,rgba(255,222,160,.6) 50%,transparent)}
+.fx-ray{position:absolute;left:50%;top:50%;z-index:1;width:min(24vmin,170px);height:1.5px;margin-top:-.75px;transform-origin:0 50%;background:linear-gradient(90deg,rgba(255,226,160,0),#fff1c8 65%,#fff)}
+
+/* 공통: 섬광 · 보조 정보 */
+.fx-flash{position:absolute;inset:0;z-index:9;pointer-events:none}
+.fx-foot{position:absolute;left:16px;right:16px;bottom:calc(7vh + env(safe-area-inset-bottom,0px));z-index:8;display:grid;justify-items:center;gap:10px;pointer-events:none;text-align:center}
+.fx-meta{font-family:var(--fx-caps);font-size:12.5px;font-weight:500;letter-spacing:.32em;color:rgba(255,255,255,.58)}
+.fx-hint{font-size:12px;color:rgba(255,255,255,.34)}
+
+/* ---------- 신화: 흑백 → 절단 → 조각 → 특성 조각 → 별 하나 ---------- */
+.mem{position:absolute;inset:0;z-index:1;width:100%;height:100%}
+.half{position:absolute;inset:0;z-index:2;background-size:100% 100%;background-repeat:no-repeat;will-change:transform}
+.shard{position:absolute;z-index:4;background-repeat:no-repeat;will-change:transform}
+.slash{
+  position:absolute;z-index:6;height:14px;margin-top:-7px;transform-origin:0 50%;
+  background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.35) 22%,rgba(255,255,255,.95) 41%,#000 46%,#000 54%,rgba(255,255,255,.95) 59%,rgba(0,0,0,.35) 78%,transparent 100%);
+  filter:drop-shadow(0 0 7px rgba(0,0,0,.75));
+}
+.cracks{position:absolute;inset:0;z-index:5;width:100%;height:100%;overflow:visible;pointer-events:none;mix-blend-mode:difference}
+.cracks path{fill:none;stroke:rgba(255,255,255,.6);stroke-width:1}
+.edge-cracks{position:absolute;inset:0;z-index:1;width:100%;height:100%;pointer-events:none}
+.edge-cracks path{fill:none;stroke:rgba(255,255,255,.15);stroke-width:1}
+.m-layer{z-index:7;perspective:1100px}
+.m-card-wrap{position:relative;width:min(86vw,640px);filter:drop-shadow(0 0 1px rgba(255,255,255,.75)) drop-shadow(0 26px 50px rgba(0,0,0,.65));will-change:transform}
+.m-card-wrap.light{filter:drop-shadow(0 0 1px rgba(0,0,0,.85)) drop-shadow(0 26px 50px rgba(0,0,0,.6))}
+.m-card{position:relative;display:grid;place-items:center;gap:14px;min-height:clamp(130px,24vw,210px);padding:clamp(26px,5vw,48px) clamp(28px,6vw,60px);overflow:hidden}
+.m-card-wrap.dark .m-card{background:#0a0a0b;color:#f4f4f2}
+.m-card-wrap.light .m-card{background:#efefec;color:#0b0b0c}
+.m-tex{position:absolute;inset:-6%;background-size:cover;background-position:center}
+.m-card-wrap.dark .m-tex{opacity:.12;mix-blend-mode:screen}
+.m-card-wrap.light .m-tex{opacity:.16;mix-blend-mode:multiply}
+.m-name{position:relative;font-family:var(--fx-font);font-weight:900;font-size:clamp(28px,6vw,62px);line-height:1.2;letter-spacing:.1em;text-align:center;text-wrap:balance;overflow-wrap:anywhere}
+.m-rule{position:relative;width:42%;height:1px;background:currentColor;opacity:0}
+.orbit{position:absolute;z-index:3;pointer-events:none}
+.orbit-svg{position:absolute;left:0;top:0;overflow:visible;mix-blend-mode:difference}
+.orbit-trail{fill:none;stroke:#fff;stroke-width:1}
+.orbit-star{
+  position:absolute;left:0;top:0;width:12px;height:12px;offset-rotate:0deg;background:#fff;mix-blend-mode:difference;
+  clip-path:polygon(50% 0,60% 40%,100% 50%,60% 60%,50% 100%,40% 60%,0 50%,40% 40%);
+}
+
+@media (prefers-reduced-motion:reduce){
+  .ambient-glow,.ambient-veil,.fx-stage{transition-duration:.3s}
+}

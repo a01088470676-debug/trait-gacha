@@ -1,0 +1,69 @@
+/* 등급 색과 등급별 표시: 점(pip) · 칩 · 릴 결과 · 결과판 · 확률표 · 설정 행 · 기록 · 10회 결과 카드 */
+:root{
+  --t0:#a3a8b0; --t1:#e9edf3; --t2:#62d69b; --t3:#5ea6ff; --t4:#a980ff; --t5:#e6b85c; --t6:#f2f2f2;
+  /* 신화는 색 대신 검정/하양 */
+  --mythic-split:linear-gradient(90deg,#050505 50%,#f5f5f5 50%);
+}
+
+.pip{flex:none;display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 5px color-mix(in srgb,var(--c) 40%,transparent)}
+[data-l="6"] .pip{background:var(--mythic-split);box-shadow:0 0 0 1px rgba(255,255,255,.45)}
+.item .pip{width:calc(var(--item-h) * .12);height:calc(var(--item-h) * .12)}
+
+/* 릴 안의 결과: 공개 전에는 흐릿하게, 공개 뒤에는 등급 색이 은은하게 */
+.item.pending .nm{opacity:.16;filter:blur(5px)}
+.item.res[data-l="1"] .nm{color:color-mix(in srgb,var(--reelText) 70%,#fff)}
+.item.res[data-l="2"] .nm{color:color-mix(in srgb,var(--t2) 55%,var(--reelText))}
+.item.res[data-l="3"] .nm,.item.res[data-l="4"] .nm,.item.res[data-l="5"] .nm{color:color-mix(in srgb,var(--c) 62%,var(--reelText))}
+.item.res[data-l="6"] .nm{letter-spacing:.1em}
+
+/* 결과판의 등급 칩 */
+.plate[data-l="6"] .plate-tier{background:#050505;color:#f5f5f5;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6)}
+
+/* 칩 */
+.chip{--c:var(--t0);display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 8px;border-radius:999px;background:color-mix(in srgb,var(--c) 15%,transparent);color:var(--c);font-size:13px;font-weight:700;white-space:nowrap}
+[data-l="6"] .chip{background:#050505;color:#f5f5f5;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
+
+/* 확률표 */
+.table-wrap{overflow-x:auto;border:1px solid var(--ui-line);border-radius:12px}
+.odds-table{width:100%;border-collapse:collapse;font-size:14px;min-width:460px}
+.odds-table th{padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--ui-muted);background:var(--ui-bg-2);border-bottom:1px solid var(--ui-line)}
+.odds-table td{padding:11px 12px;border-bottom:1px solid var(--ui-line);vertical-align:top}
+.odds-table tr:last-child td{border-bottom:0}
+.odds-table .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.odds-table th.num{text-align:right}
+.odds-table td.num{font-weight:700}
+.odds-table .traits{color:var(--ui-text);line-height:1.6}
+.odds-table tr.off{opacity:.42}
+.odds-table tfoot td{background:var(--ui-bg-2);font-weight:700}
+
+/* 확률 설정의 등급 행 */
+.tier-row{--c:var(--t0);display:grid;gap:8px;padding:12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07)}
+.tier-row textarea{width:100%;min-height:52px;max-height:160px;field-sizing:content;resize:vertical;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.3);color:var(--ui-text);font-size:14px;line-height:1.5}
+.prob input:focus,.tier-row textarea:focus{outline:2px solid color-mix(in srgb,var(--c) 70%,#fff);outline-offset:1px;border-color:transparent}
+.tier-row[data-l="6"] textarea:focus,.tier-row[data-l="6"] .prob input:focus{outline-color:#fff}
+
+/* 최근 결과 */
+.history li{--c:var(--t0);display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08)}
+.history li:first-child{border-color:color-mix(in srgb,var(--c) 60%,transparent);background:color-mix(in srgb,var(--c) 12%,transparent)}
+.history li[data-l="6"]{background:#050505;border-color:rgba(255,255,255,.5)}
+.history li.empty{padding:0;border:0;background:none;color:var(--ui-muted)}
+
+/* 10회 결과 카드 */
+.ten-grid{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ten-card{
+  --c:var(--t0);position:relative;display:grid;align-content:space-between;gap:10px;min-height:96px;padding:12px 10px 11px;border-radius:10px;
+  background:var(--ui-bg-2);border:1px solid color-mix(in srgb,var(--c) 26%,transparent);overflow:hidden;
+  animation:tenIn .45s cubic-bezier(.2,.7,.2,1) both;
+}
+.ten-card::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;background:var(--c);opacity:0}
+.ten-card[data-l="3"]::before,.ten-card[data-l="4"]::before,.ten-card[data-l="5"]::before{opacity:.85}
+.ten-card[data-l="6"]{background:#050505;border-color:rgba(255,255,255,.55)}
+.ten-card[data-l="6"]::before{opacity:1;background:linear-gradient(90deg,#fff,#fff 50%,#444 50%)}
+.ten-card.best{box-shadow:0 0 0 1px color-mix(in srgb,var(--c) 70%,transparent),0 10px 26px rgba(0,0,0,.35)}
+.ten-tier{font-family:var(--fx-caps);font-size:10.5px;font-weight:700;letter-spacing:.18em;color:var(--c);opacity:.9}
+.ten-card[data-l="0"] .ten-tier{opacity:.7}
+.ten-name{font-family:var(--fx-font);font-weight:700;font-size:15px;line-height:1.35;overflow-wrap:anywhere}
+.ten-card[data-l="0"] .ten-name{color:var(--ui-muted);font-weight:500}
+@keyframes tenIn{from{opacity:0;transform:translateY(8px)}}
+@media (max-width:640px){ .ten-grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (prefers-reduced-motion:reduce){ .ten-card{animation:none} }
