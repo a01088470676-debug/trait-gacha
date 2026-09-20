@@ -103,6 +103,12 @@
     <p class="lead">등급마다 확률(%)을 정하고, 특성 이름은 쉼표나 줄바꿈으로 나눠 적으세요. 고친 내용은 바로 저장돼요.</p>
     <div class="sum" id="sum"></div>
     <ol class="tier-list" id="tierList"></ol>
+    <h3 class="section-title">내 컴퓨터에 저장 / 불러오기</h3>
+    <div class="file-row">
+      <button type="button" class="btn ghost" id="poolSave">.txt 파일로 저장</button>
+      <span class="btn ghost file-btn">.txt 파일 불러오기<input type="file" id="poolLoad" accept=".txt,text/plain" aria-label="확률표 파일 불러오기"></span>
+    </div>
+    <p class="note">저장한 파일은 메모장으로 열어 바로 고칠 수 있어요. 파일을 친구에게 보내면 그 사람도 같은 특성으로 뽑아요.</p>
   </div>
   <div class="dlg-foot">
     <span class="save-state" id="saveState">기본값</span>

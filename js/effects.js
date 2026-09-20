@@ -332,7 +332,7 @@
   /* ==========================================================
      언커먼 — 초록. 흰 별 2바퀴 → 초록으로 차오름 → 반짝 → 이름 → 별 2개가 이름 주변을 돎
      ========================================================== */
-  async function playUncommonEffect(res, q = 1) {
+  async function playUncommonEffect(res, q = 1, opts = {}) {
     newRun();
     openStage('t-unc');
     requestAnimationFrame(() => stageEl.classList.add('dim'));
@@ -360,7 +360,8 @@
     o.add(miniStar('', '#d9ffea'), 0.5);
     A(o.box, [{ opacity: 0 }, { opacity: 1 }], { duration: 600 });
     await sleep(500); if (cancelled()) return;
-    showMeta(res);
+    if (!opts.noMeta) showMeta(res);
+    return { box };
   }
 
   /* ==========================================================
@@ -428,7 +429,7 @@
       calcMode: 'spline', keyTimes: '0;0.333;0.667;1', keySplines: '.6 0 .4 1;.6 0 .4 1;.6 0 .4 1' }, poly);
     return wrapEl;
   }
-  async function playRareEffect(res, q = 1) {
+  async function playRareEffect(res, q = 1, opts = {}) {
     newRun();
     openStage('t-rare');
     requestAnimationFrame(() => stageEl.classList.add('dim'));
@@ -458,7 +459,8 @@
     o.add(morphShape(C), 0.1);
     A(o.box, [{ opacity: 0 }, { opacity: 1 }], { duration: 600 });
     await sleep(500); if (cancelled()) return;
-    showMeta(res);
+    if (!opts.noMeta) showMeta(res);
+    return { box: t.box };
   }
 
   /* ==========================================================
@@ -515,7 +517,7 @@
     A(mw, [{ clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }], { duration: RM ? 600 : 1500, easing: 'cubic-bezier(.3,0,.2,1)' });
     return mw;
   }
-  async function playEpicEffect(res, q = 1) {
+  async function playEpicEffect(res, q = 1, opts = {}) {
     newRun();
     openStage('t-epic');
     requestAnimationFrame(() => stageEl.classList.add('dim'));
@@ -539,7 +541,7 @@
     st.wrap.remove();
     milkyWay(L);
     const sg = sigil('epic', L);
-    const { name } = nameBox(L, res.name);
+    const { box, name } = nameBox(L, res.name);
     name.style.opacity = '0';
     after(A(white, [{ opacity: RM ? 0.7 : 1 }, { opacity: 0 }], { duration: 800, easing: 'ease-out' }), () => white.remove());
     drawSigil(sg, 1500);
@@ -547,7 +549,8 @@
     await sleep(380); if (cancelled()) return;
     A(name, [{ opacity: 0, filter: 'blur(8px)', letterSpacing: '.3em' }, { opacity: 1, filter: 'blur(0px)', letterSpacing: '.08em' }], { duration: 820 });
     await sleep(1100); if (cancelled()) return;
-    showMeta(res);
+    if (!opts.noMeta) showMeta(res);
+    return { box };
   }
 
   /* ==========================================================
@@ -574,7 +577,7 @@
     });
     return s;
   }
-  async function playLegendaryEffect(res, q = 1) {
+  async function playLegendaryEffect(res, q = 1, opts = {}) {
     newRun();
     openStage('t-legend');
     requestAnimationFrame(() => stageEl.classList.add('dim'));
@@ -631,278 +634,489 @@
     st.wrap.remove();
     audio.legendOrbit();
     await sleep(500); if (cancelled()) return;
-    showMeta(res);
+    if (!opts.noMeta) showMeta(res);
+    return { box };
   }
 
   /* ==========================================================
-     신화 — BLACK / WHITE → 현실 절단 → 화면 조각 → 특성 조각 → 별 하나
+     신화 — 가짜 등급 연출 → ?? → 글리치 → 암전 → 흑백 점멸 → 눈 → 칼질 → 파편 → 이름
      ========================================================== */
 
-  // PHASE 1: 검정과 하양의 막이 양쪽에서 밀려와 교차한다 (1/4 해상도 캔버스라 경계가 자연스럽게 부드럽다)
-  function playBlackWhiteTransition(dur) {
-    return new Promise(resolve => {
-      const c = el('canvas', 'mem', stageEl);
-      const q = 0.25;
-      const W = Math.max(160, Math.round(vw() * q)), H = Math.max(120, Math.round(vh() * q));
-      c.width = W; c.height = H;
-      const g = c.getContext('2d');
-      const ph = [rand(0, 6), rand(0, 6), rand(0, 6)];
-      const r = run, t0 = performance.now();
-      A(c, [{ opacity: 0 }, { opacity: 1 }], { duration: 500 });
-      (function frame(now) {
-        if (r.cancelled) { resolve(c); return; }
-        const p = Math.min(1, (now - t0) / dur);
-        drawMembranes(g, W, H, p, (now - t0) / 1000, ph);
-        if (p < 1) requestAnimationFrame(frame); else resolve(c);
-      })(t0);
-    });
+  /* 1) 기본~레전더리 중 하나를 골라 그 등급 연출을 그대로 보여 준다 */
+  function fakePick() {
+    const rows = TG.stats(TG.state.pool).rows.filter(r => r.level < 6 && r.traits.length);
+    if (!rows.length) { const level = Math.floor(rand(0, 6)); return { level, name: TG.TIERS[level].ko + ' 특성' }; }
+    const row = pick(rows);
+    return { level: row.level, name: pick(row.traits) };
   }
-  function drawMembranes(g, W, H, p, t, ph) {
-    const ease = x => x * x * (3 - 2 * x);
-    g.fillStyle = '#111113'; g.fillRect(0, 0, W, H);
-    const approach = ease(Math.min(1, p / 0.5));
-    const clash = p < 0.5 ? 0 : Math.pow((p - 0.5) / 0.5, 1.6);       // 후반으로 갈수록 강하게 충돌
-    const amp = W * (0.025 + 0.2 * clash);
-    const sp = 1.2 + 4.5 * clash;
-    const gap = W * 0.06 * (1 - approach);
-    const bx0 = -W * 0.12 + (W * 0.62 - gap) * approach;                 // 검정의 앞쪽
-    const wx0 = W * 1.12 - (W * 0.62 - gap) * approach;                  // 하양의 앞쪽
-    for (let y = 0; y < H; y++) {
-      const k = y / H;
-      const w1 = Math.sin(k * 9 + t * sp + ph[0]) * 0.55 + Math.sin(k * 23 - t * sp * 1.7 + ph[1]) * 0.3 + Math.sin(k * 47 + t * sp * 2.3) * 0.15;
-      const w2 = Math.sin(k * 8.3 - t * sp * 1.1 + ph[2]) * 0.55 + Math.sin(k * 19 + t * sp * 1.5 + ph[0]) * 0.3 + Math.sin(k * 41 - t * sp * 2.1) * 0.15;
-      const bx = bx0 + w1 * amp, wx = wx0 - w2 * amp;
-      let bEnd = bx, wStart = wx;
-      if (bx > wx) {                                                      // 겹치는 줄: 줄마다 이기는 쪽이 번갈아 → 서로 파고드는 모양
-        if (Math.sin(k * 13 + t * sp * 0.9 + ph[1]) > 0) wStart = bx; else bEnd = wx;
-      }
-      g.fillStyle = '#000'; g.fillRect(0, y, Math.max(0, bEnd), 1);
-      g.fillStyle = '#fff'; g.fillRect(wStart, y, W - wStart, 1);
-      g.fillStyle = 'rgba(128,128,128,.55)';                             // 경계의 중간 회색
-      if (bEnd > 0 && bEnd < W) g.fillRect(bEnd - 1, y, 2, 1);
-      if (wStart > 0 && wStart < W) g.fillRect(wStart - 1, y, 2, 1);
+  const FAKE_PLAYERS = { 2: playUncommonEffect, 3: playRareEffect, 4: playEpicEffect, 5: playLegendaryEffect };
+  async function playFakeTier(f, q) {
+    const pseudo = { name: f.name, tier: TG.TIERS[f.level], level: f.level, each: 0 };
+    if (f.level >= 2) {
+      const r = await FAKE_PLAYERS[f.level](pseudo, q, { noMeta: true });
+      return r && r.box;
     }
-  }
-
-  // 검기 방향: 왼쪽 위 → 오른쪽 아래, 또는 오른쪽 위 → 왼쪽 아래 (무작위)
-  function slashGeometry() {
-    const W = vw(), H = vh(), dir = Math.random() < 0.5 ? 1 : -1;
-    const j = () => rand(-0.08, 0.08);
-    const P0 = dir === 1 ? { x: -W * 0.04, y: H * (0.06 + j()) } : { x: W * 1.04, y: H * (0.06 + j()) };
-    const P1 = dir === 1 ? { x: W * 1.04, y: H * (0.94 + j()) } : { x: -W * 0.04, y: H * (0.94 + j()) };
-    const dx = P1.x - P0.x, dy = P1.y - P0.y, len = Math.hypot(dx, dy);
-    const u = { x: dx / len, y: dy / len };
-    return { P0, P1, u, nrm: { x: -u.y, y: u.x }, len, ang: Math.atan2(dy, dx) * 180 / Math.PI };
-  }
-  const along = (g, t) => ({ x: g.P0.x + g.u.x * g.len * t, y: g.P0.y + g.u.y * g.len * t });
-  const polyCss = pts => `polygon(${pts.map(p => `${p.x.toFixed(1)}px ${p.y.toFixed(1)}px`).join(',')})`;
-
-  // PHASE 2: 한 번 베었다 — 얇은 검은 중심선 + 흰 가장자리 + 약한 검은 글로
-  async function playMythicSlash(g) {
-    const s = el('div', 'slash', stageEl);
-    const ext = Math.hypot(vw(), vh()) * 0.08;
-    s.style.left = (g.P0.x - g.u.x * ext) + 'px';
-    s.style.top = (g.P0.y - g.u.y * ext) + 'px';
-    s.style.width = (g.len + ext * 2) + 'px';
-    s.style.transform = `rotate(${g.ang}deg) scaleX(0)`;
-    await A(s, [{ transform: `rotate(${g.ang}deg) scaleX(0)` }, { transform: `rotate(${g.ang}deg) scaleX(1)` }],
-      { duration: RM ? 420 : 130, easing: 'cubic-bezier(.7,0,.2,1)' }).finished.catch(() => {});
-    flash('#ffffff', 0.16);
-    cracksAlong(g);
-    after(A(s, [{ opacity: 1, transform: `rotate(${g.ang}deg) scaleX(1) scaleY(1)` }, { opacity: 1, offset: 0.3 }, { opacity: 0, transform: `rotate(${g.ang}deg) scaleX(1) scaleY(.25)` }],
-      { duration: 900, easing: 'ease-out' }), () => s.remove());
-    await sleep(140);
-  }
-  // 검기가 지나간 자리에 잠깐 남는 아주 얇은 균열
-  function cracksAlong(g) {
-    const s = svg('svg', { class: 'cracks', viewBox: `0 0 ${vw()} ${vh()}`, preserveAspectRatio: 'none' }, stageEl);
-    const k = Math.min(vw(), vh()) / 800 + 0.3;
-    const lines = [`M ${g.P0.x} ${g.P0.y} L ${g.P1.x} ${g.P1.y}`];
-    for (let i = 0; i < 5; i++) {
-      const b = along(g, rand(0.12, 0.88)), side = Math.random() < 0.5 ? 1 : -1;
-      let x = b.x, y = b.y, d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-      for (let n = 0; n < 3; n++) {
-        const ang = Math.atan2(g.nrm.y * side, g.nrm.x * side) + rand(-0.7, 0.7), L = rand(18, 46) * k;
-        x += Math.cos(ang) * L; y += Math.sin(ang) * L;
-        d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+    openStage(f.level === 0 ? 't-basic' : 't-common');
+    requestAnimationFrame(() => stageEl.classList.add('dim'));
+    const L = layer();
+    const { box, name } = nameBox(L, f.name);
+    A(name, [{ opacity: 0, filter: 'blur(5px)' }, { opacity: 1, filter: 'blur(0px)' }], { duration: 520 });
+    if (f.level === 1) {                                   // 커먼: 작은 별이 두 바퀴 돌고 날아감
+      audio.common();
+      await sleep(320);
+      const o = makeOrbit(L, box.getBoundingClientRect(), { padX: 26, padY: 20, tilt: -4 });
+      A(o.box, [{ transform: 'rotate(-4deg) scale(1.3)' }, { transform: 'rotate(-4deg) scale(1)' }], { duration: 1500 });
+      for (let i = 0; i < 6; i++) {
+        const s = miniStar('small', '#ffffff');
+        s.classList.add('orbiter');
+        s.style.offsetPath = `path("${o.d}")`;
+        o.box.append(s);
+        A(s, [{ offsetDistance: `${i / 6 * 100}%` }, { offsetDistance: `${i / 6 * 100 + 200}%` }], { duration: 1500, easing: 'cubic-bezier(.35,0,.5,1)' });
+        after(A(s, [{ transform: 'translate(0,0)', opacity: 1 }, { transform: `translate(0, ${-motion(200)}px) scale(.4)`, opacity: 0 }], { duration: 700, delay: 1500 + i * 40 }), () => s.remove());
       }
-      lines.push(d);
+      await sleep(1900);
+    } else {
+      await sleep(900);
     }
-    lines.forEach((d, i) => {
-      const p = svg('path', { d, pathLength: 1 }, s);
-      p.style.strokeDasharray = '1';
-      A(p, [{ strokeDashoffset: '1' }, { strokeDashoffset: '0' }], { duration: 220, delay: i * 25 });
-      if (i === 0) p.style.opacity = '0.35';
-    });
-    after(A(s, [{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: 1500 }), () => s.remove());
+    return box;
   }
 
-  // 멈춘 흑백 화면을 절단선 양쪽 두 덩어리로
-  function splitHalves(snap, g) {
-    const big = Math.max(vw(), vh()) * 3;
-    const a = { x: g.P0.x - g.u.x * big, y: g.P0.y - g.u.y * big }, b = { x: g.P1.x + g.u.x * big, y: g.P1.y + g.u.y * big };
-    return [1, -1].map(side => {
-      const d = el('div', 'half', stageEl);
-      d.style.backgroundImage = `url("${snap}")`;
-      const o = { x: g.nrm.x * big * side, y: g.nrm.y * big * side };
-      d.style.clipPath = polyCss([a, b, { x: b.x + o.x, y: b.y + o.y }, { x: a.x + o.x, y: a.y + o.y }]);
-      d._side = side;
-      return d;
-    });
-  }
-
-  // PHASE 3: 절단면을 따라 떨어져 나갈 조각 (8~15개). 조각 크기만큼만 요소를 만든다
-  function createWorldFragments(snap, g, n) {
-    const k = Math.min(vw(), vh()) / 800 + 0.25;
-    const ts = [];
-    for (let i = 0; i <= n; i++) ts.push(0.08 + 0.84 * i / n + (i && i < n ? rand(-0.015, 0.015) : 0));
-    const shards = [];
+  /* 2) 이름 뒤에 물음표가 하나씩 늘어난다 */
+  async function questionMarks(box, n = 7) {
+    const host = box.parentElement;
+    const holder = el('div', 'q-holder', host);
+    const r = box.getBoundingClientRect(), lr = host.getBoundingClientRect();
+    const base = Math.min(130, Math.max(60, r.height));
     for (let i = 0; i < n; i++) {
-      const side = (i % 2 ? 1 : -1) * (Math.random() < 0.25 ? -1 : 1);
-      const pa = along(g, ts[i]), pb = along(g, ts[i + 1]), mid = along(g, (ts[i] + ts[i + 1]) / 2 + rand(-0.01, 0.01));
-      const off = (p, d) => ({ x: p.x + g.nrm.x * d * side, y: p.y + g.nrm.y * d * side });
-      const poly = [pa, pb, off(pb, rand(16, 60) * k), off(mid, rand(40, 110) * k), off(pa, rand(16, 60) * k)];
+      const q = el('div', 'q-mark', holder);
+      q.textContent = '?';
+      const side = i % 2 ? 1 : -1;
+      Object.assign(q.style, {
+        left: (r.left + r.width / 2 - lr.left + side * rand(r.width * 0.12, r.width * 0.62)) + 'px',
+        top: (r.top + r.height / 2 - lr.top + rand(-r.height * 0.5, r.height * 0.45)) + 'px',
+        fontSize: (rand(0.7, 1.5) * base) + 'px',
+      });
+      A(q, [{ opacity: 0, transform: `translate(-50%,-50%) scale(.4) rotate(${rand(-25, 25).toFixed(0)}deg)` },
+            { opacity: rand(0.3, 0.7).toFixed(2), transform: `translate(-50%,-50%) scale(1) rotate(${rand(-14, 14).toFixed(0)}deg)` }], { duration: 320 });
+      audio.mythicQuestion(i);
+      await sleep(190 - i * 8);
+      if (cancelled()) return;
+    }
+    await sleep(300);
+  }
+
+  /* 3) 글리치 10종 — 하나만 무작위로 터진다 */
+  const gShake = frames => A(stageEl, frames, { duration: 900, easing: 'steps(6,end)', fill: 'none' });
+  const GLITCHES = [
+    // 1. 색 분리
+    async () => {
+      gShake([{ filter: 'none', transform: 'translate(0,0)' },
+        { filter: 'drop-shadow(5px 0 rgba(255,0,70,.9)) drop-shadow(-5px 0 rgba(0,220,255,.9))', transform: 'translate(-7px,2px)', offset: 0.2 },
+        { filter: 'drop-shadow(-8px 0 rgba(255,0,70,.9)) drop-shadow(8px 0 rgba(0,220,255,.9))', transform: 'translate(9px,-3px)', offset: 0.55 },
+        { filter: 'drop-shadow(3px 0 rgba(255,0,70,.9)) drop-shadow(-3px 0 rgba(0,220,255,.9))', transform: 'translate(-3px,1px)', offset: 0.8 },
+        { filter: 'none', transform: 'translate(0,0)' }]);
+      await sleep(900);
+    },
+    // 2. 가로로 잘려 밀림
+    async () => {
+      const bands = [];
+      for (let i = 0; i < 9; i++) {
+        const b = el('div', 'g-band', stageEl);
+        const h = rand(3, 9);
+        Object.assign(b.style, { top: rand(0, 100 - h) + '%', height: h + '%' });
+        A(b, [{ opacity: 0, transform: 'translateX(0)' },
+              { opacity: 1, transform: `translateX(${rand(-16, 16).toFixed(1)}vw)`, offset: rand(0.2, 0.7).toFixed(2) },
+              { opacity: 0, transform: 'translateX(0)' }], { duration: 900, easing: 'steps(5,end)' });
+        bands.push(b);
+      }
+      gShake([{ transform: 'translateX(0)' }, { transform: 'translateX(-12px)', offset: 0.3 }, { transform: 'translateX(14px)', offset: 0.65 }, { transform: 'translateX(0)' }]);
+      await sleep(900);
+      bands.forEach(b => b.remove());
+    },
+    // 3. 깜빡임
+    async () => {
+      const f = el('div', 'g-flash', stageEl);
+      A(f, [{ opacity: 0, background: '#fff' }, { opacity: .9, offset: .1 }, { opacity: 0, offset: .2 },
+            { opacity: .7, background: '#000', offset: .35 }, { opacity: 0, offset: .5 },
+            { opacity: .85, background: '#fff', offset: .7 }, { opacity: 0 }], { duration: 900, easing: 'steps(8,end)' });
+      gShake([{ opacity: 1 }, { opacity: .2, offset: .25 }, { opacity: 1, offset: .35 }, { opacity: .3, offset: .6 }, { opacity: 1 }]);
+      await sleep(900);
+      f.remove();
+    },
+    // 4. 화면이 위아래로 흐름
+    async () => {
+      gShake([{ transform: 'translateY(0)' }, { transform: 'translateY(-38vh)', offset: .18 }, { transform: 'translateY(26vh)', offset: .4 },
+        { transform: 'translateY(-14vh)', offset: .62 }, { transform: 'translateY(6vh)', offset: .82 }, { transform: 'translateY(0)' }]);
+      const f = el('div', 'g-scan', stageEl);
+      A(f, [{ opacity: .5, transform: 'translateY(-100%)' }, { opacity: .5, transform: 'translateY(100%)' }], { duration: 900, easing: 'linear' });
+      await sleep(900);
+      f.remove();
+    },
+    // 5. 심하게 흔들림
+    async () => {
+      const j = () => `translate(${rand(-22, 22).toFixed(0)}px, ${rand(-16, 16).toFixed(0)}px) rotate(${rand(-1.6, 1.6).toFixed(2)}deg)`;
+      gShake([{ transform: 'none' }, { transform: j(), offset: .15 }, { transform: j(), offset: .3 }, { transform: j(), offset: .45 },
+        { transform: j(), offset: .6 }, { transform: j(), offset: .75 }, { transform: j(), offset: .9 }, { transform: 'none' }]);
+      await sleep(900);
+    },
+    // 6. 색 반전
+    async () => {
+      gShake([{ filter: 'none' }, { filter: 'invert(1)', offset: .12 }, { filter: 'none', offset: .24 },
+        { filter: 'invert(1) hue-rotate(90deg)', offset: .46 }, { filter: 'none', offset: .58 },
+        { filter: 'invert(1)', offset: .78 }, { filter: 'none' }], { });
+      await sleep(900);
+    },
+    // 7. 사각 블록이 튐
+    async () => {
+      const blocks = [];
+      for (let i = 0; i < 22; i++) {
+        const b = el('div', 'g-block', stageEl);
+        Object.assign(b.style, { left: rand(0, 92) + '%', top: rand(0, 92) + '%', width: rand(4, 22) + '%', height: rand(1.5, 9) + '%', background: Math.random() < 0.5 ? '#fff' : '#111' });
+        A(b, [{ opacity: 0 }, { opacity: 1, offset: rand(0.1, 0.8).toFixed(2) }, { opacity: 0 }], { duration: 900, easing: 'steps(4,end)' });
+        blocks.push(b);
+      }
+      await sleep(900);
+      blocks.forEach(b => b.remove());
+    },
+    // 8. 버벅거림 (같은 장면이 튀며 반복)
+    async () => {
+      gShake([{ transform: 'scale(1)' }, { transform: 'scale(1.06) translate(6px,-4px)', offset: .12 }, { transform: 'scale(1)', offset: .2 },
+        { transform: 'scale(1.06) translate(-8px,5px)', offset: .42 }, { transform: 'scale(1)', offset: .5 },
+        { transform: 'scale(1.1) translate(4px,6px)', offset: .72 }, { transform: 'scale(1)' }]);
+      const f = el('div', 'g-flash', stageEl);
+      f.style.background = '#000';
+      A(f, [{ opacity: 0 }, { opacity: 1, offset: .13 }, { opacity: 0, offset: .16 }, { opacity: 0, offset: .43 },
+            { opacity: 1, offset: .46 }, { opacity: 0, offset: .5 }, { opacity: 1, offset: .73 }, { opacity: 0, offset: .76 }, { opacity: 0 }],
+        { duration: 900, easing: 'steps(12,end)' });
+      await sleep(900);
+      f.remove();
+    },
+    // 9. 오류 문구
+    async () => {
+      const wrap = el('div', 'g-err', stageEl);
+      const lines = ['ERROR 0xE7 — TRAIT TABLE CORRUPTED', 'NULL REFERENCE: tier[?]', '>>> RECALCULATING ODDS', 'SIGNAL LOST', '?? ?? ?? ??', 'UNKNOWN ENTRY DETECTED'];
+      for (let i = 0; i < 14; i++) {
+        const l = el('div', 'g-err-line', wrap);
+        l.textContent = pick(lines);
+        l.style.top = rand(4, 92) + '%';
+        l.style.left = rand(2, 55) + '%';
+        A(l, [{ opacity: 0 }, { opacity: 1, offset: rand(0.05, 0.7).toFixed(2) }, { opacity: 0 }], { duration: 900, easing: 'steps(3,end)' });
+      }
+      gShake([{ transform: 'none' }, { transform: 'translate(-6px,3px)', offset: .3 }, { transform: 'translate(7px,-4px)', offset: .7 }, { transform: 'none' }]);
+      await sleep(900);
+      wrap.remove();
+    },
+    // 10. 글자가 깨져 뒤섞임
+    async () => {
+      const pool = '?!@#$%&*ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ0123456789';
+      const targets = [...stageEl.querySelectorAll('.fx-name, .fx-stroke tspan')];
+      const olds = targets.map(t => t.textContent);
+      gShake([{ transform: 'none' }, { transform: 'translate(-5px,2px)', offset: .4 }, { transform: 'translate(6px,-3px)', offset: .8 }, { transform: 'none' }]);
+      for (let k = 0; k < 9; k++) {
+        targets.forEach((t, i) => { t.textContent = [...olds[i]].map(c => (c === ' ' ? ' ' : pick(pool))).join(''); });
+        await sleep(90);
+        if (cancelled()) break;
+      }
+      targets.forEach((t, i) => { t.textContent = olds[i]; });
+      await sleep(120);
+    },
+  ];
+
+  /* 4) 창이 완전히 검정색으로 */
+  async function toBlack() {
+    const L = stageEl.querySelector('.fx-layer');
+    if (L) A(L, [{ opacity: 1 }, { opacity: 0 }], { duration: 280 });
+    await sleep(300);
+    stageEl.className = 'fx-stage t-mythic black';
+    stageEl.replaceChildren();
+    await sleep(160);
+  }
+
+  /* 5) 하양과 검정이 번갈아, 점점 빠르게, 검정에서 멈춤 */
+  async function bwFlicker() {
+    const f = el('div', 'bw', stageEl);
+    let t = RM ? 240 : 190, i = 0;
+    while (t > (RM ? 90 : 34)) {
+      f.style.background = i % 2 ? '#000' : '#fff';
+      audio.mythicFlick(i, t < 90);
+      await sleep(t);
+      if (cancelled()) { f.remove(); return; }
+      t *= 0.82; i++;
+    }
+    f.style.background = '#000';
+    await sleep(420);
+    f.remove();
+  }
+
+  /* 6) 검정 배경에 흰 눈이 천천히 뜬다 */
+  async function openEye() {
+    const W = vw(), H = vh(), cx = W / 2, cy = H / 2;
+    const w = Math.min(W * 0.62, 780), h = Math.min(w * 0.4, H * 0.38);
+    const s = svg('svg', { class: 'eye-svg', xmlns: SVGNS, width: W, height: H, viewBox: `0 0 ${W} ${H}` }, stageEl);
+    const id = 'eyeclip' + Math.floor(rand(100000, 999999));
+    const dEye = `M ${cx - w / 2} ${cy} Q ${cx} ${cy - h} ${cx + w / 2} ${cy} Q ${cx} ${cy + h} ${cx - w / 2} ${cy} Z`;
+    const cp = svg('clipPath', { id }, svg('defs', {}, s));
+    svg('path', { d: dEye }, cp);
+    const g = svg('g', {}, s);
+    svg('path', { d: dEye, fill: '#f4f4f2' }, g);
+    const inner = svg('g', { 'clip-path': `url(#${id})` }, g);
+    const irisR = h * 0.74;
+    svg('circle', { cx, cy, r: irisR, fill: '#0a0a0b' }, inner);
+    svg('circle', { cx, cy, r: irisR, fill: 'none', stroke: '#ffffff', 'stroke-width': 2, opacity: 0.45 }, inner);
+    const pupil = svg('circle', { cx, cy, r: irisR * 0.45, fill: '#000000' }, inner);
+    svg('circle', { cx: cx - irisR * 0.32, cy: cy - irisR * 0.34, r: irisR * 0.15, fill: '#ffffff' }, inner);
+    svg('path', { d: `M ${cx - w / 2} ${cy} Q ${cx} ${cy - h} ${cx + w / 2} ${cy}`, fill: 'none', stroke: '#ffffff', 'stroke-width': 3 }, g);
+    g.style.transformOrigin = `${cx}px ${cy}px`;
+    pupil.style.transformBox = 'fill-box';
+    pupil.style.transformOrigin = 'center';
+    const d = RM ? 1300 : 2200;
+    audio.mythicEye(d / 1000);
+    A(g, [{ transform: 'scaleY(.02)' }, { transform: 'scaleY(1)' }], { duration: d, easing: 'cubic-bezier(.25,.7,.25,1)' });
+    A(pupil, [{ transform: 'scale(1.7)' }, { transform: 'scale(1)' }], { duration: d * 1.15, easing: 'cubic-bezier(.3,.6,.2,1)' });
+    A(inner, [{ transform: 'translateX(0)' }, { transform: `translateX(${motion(14).toFixed(0)}px)`, offset: 0.7 }, { transform: 'translateX(0)' }], { duration: d * 1.3, easing: 'ease-in-out' });
+    await sleep(d + 520);
+    g.style.transform = 'scaleY(1)';          // 조각 낼 때 쓸 수 있게 최종 상태를 남긴다
+    pupil.style.transform = 'scale(1)';
+    return s;
+  }
+
+  /* 7) 무작위로 1~10번, 칼이 화면을 가른다 */
+  function cutGeometry() {
+    const W = vw(), H = vh(), R = Math.hypot(W, H);
+    const a = rand(0, Math.PI);
+    const u = { x: Math.cos(a), y: Math.sin(a) }, nrm = { x: -u.y, y: u.x };
+    const off = rand(-0.34, 0.34) * Math.min(W, H);
+    const c = { x: W / 2 + nrm.x * off, y: H / 2 + nrm.y * off };
+    return { P0: { x: c.x - u.x * R * 0.6, y: c.y - u.y * R * 0.6 }, P1: { x: c.x + u.x * R * 0.6, y: c.y + u.y * R * 0.6 },
+      u, nrm, len: R * 1.2, ang: a * 180 / Math.PI };
+  }
+  async function swordCuts() {
+    const n = 1 + Math.floor(Math.random() * 10);
+    const lines = [];
+    const ext = Math.hypot(vw(), vh()) * 0.06;
+    for (let i = 0; i < n; i++) {
+      const g = cutGeometry();
+      lines.push(g);
+      const s = el('div', 'slash', stageEl);
+      Object.assign(s.style, { left: (g.P0.x - g.u.x * ext) + 'px', top: (g.P0.y - g.u.y * ext) + 'px', width: (g.len + ext * 2) + 'px', transform: `rotate(${g.ang}deg) scaleX(0)` });
+      audio.mythicCut(i);
+      A(s, [{ transform: `rotate(${g.ang}deg) scaleX(0)` }, { transform: `rotate(${g.ang}deg) scaleX(1)` }], { duration: RM ? 320 : 110, easing: 'cubic-bezier(.7,0,.2,1)' });
+      after(A(s, [{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], { duration: 950, delay: 140 }), () => s.remove());
+      await sleep(RM ? 340 : (n > 6 ? 130 : 210));
+      if (cancelled()) return lines;
+    }
+    await sleep(240);
+    return lines;
+  }
+
+  /* 8) 잘린 자리를 따라 화면이 조각나 떨어진다 */
+  function splitByLine(polys, g) {
+    const side = p => (p.x - g.P0.x) * g.nrm.x + (p.y - g.P0.y) * g.nrm.y;
+    const out = [];
+    for (const poly of polys) {
+      const A2 = [], B = [];
+      for (let i = 0; i < poly.length; i++) {
+        const c = poly[i], nx = poly[(i + 1) % poly.length];
+        const sc = side(c), sn = side(nx);
+        if (sc >= 0) A2.push(c);
+        if (sc <= 0) B.push(c);
+        if ((sc > 0 && sn < 0) || (sc < 0 && sn > 0)) {
+          const t = sc / (sc - sn);
+          const ip = { x: c.x + (nx.x - c.x) * t, y: c.y + (nx.y - c.y) * t };
+          A2.push(ip); B.push(ip);
+        }
+      }
+      if (A2.length >= 3) out.push(A2);
+      if (B.length >= 3) out.push(B);
+    }
+    return out;
+  }
+  const svgSnapshot = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(s));
+  async function fallFragments(lines, eye) {
+    const W = vw(), H = vh();
+    let polys = [[{ x: -2, y: -2 }, { x: W + 2, y: -2 }, { x: W + 2, y: H + 2 }, { x: -2, y: H + 2 }]];
+    for (const g of lines) {
+      if (polys.length > 40) break;
+      polys = splitByLine(polys, g);
+    }
+    const snap = svgSnapshot(eye);
+    eye.remove();
+    // 조각은 검은 화면이라 그냥 두면 보이지 않는다. 바깥 요소에 그림자를 줘서 잘린 가장자리가 빛나게 한다
+    const frags = polys.map(poly => {
       const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
       const x0 = Math.min(...xs), y0 = Math.min(...ys);
-      const d = el('div', 'shard', stageEl);
-      Object.assign(d.style, {
-        left: x0 + 'px', top: y0 + 'px', width: (Math.max(...xs) - x0) + 'px', height: (Math.max(...ys) - y0) + 'px',
-        backgroundImage: `url("${snap}")`, backgroundSize: `${vw()}px ${vh()}px`, backgroundPosition: `${-x0}px ${-y0}px`,
-        clipPath: polyCss(poly.map(p => ({ x: p.x - x0, y: p.y - y0 }))),
+      const wrap = el('div', 'frag-wrap', stageEl);
+      Object.assign(wrap.style, { left: x0 + 'px', top: y0 + 'px', width: (Math.max(...xs) - x0) + 'px', height: (Math.max(...ys) - y0) + 'px' });
+      const f = el('div', 'frag', wrap);
+      Object.assign(f.style, {
+        backgroundImage: `linear-gradient(160deg, rgba(255,255,255,.14), rgba(255,255,255,.02) 55%), url("${snap}")`,
+        backgroundSize: `auto, ${W}px ${H}px`,
+        backgroundPosition: `0 0, ${-x0}px ${-y0}px`,
+        clipPath: `polygon(${poly.map(p => `${(p.x - x0).toFixed(1)}px ${(p.y - y0).toFixed(1)}px`).join(',')})`,
       });
-      d._side = side;
-      shards.push(d);
-    }
-    return shards;
-  }
-  async function animateFragments(halves, shards, g) {
-    const D = Math.max(vw(), vh()), k = RM ? 0.3 : 1;
-    const gapOf = s => `translate(${(g.nrm.x * s * 10 * k).toFixed(1)}px, ${(g.nrm.y * s * 10 * k).toFixed(1)}px)`;
-    halves.forEach(h => A(h, [{ transform: 'translate(0,0)' }, { transform: gapOf(h._side) }], { duration: 180, easing: 'cubic-bezier(.2,.8,.2,1)' }));
-    shards.forEach(sh => {
-      const s = sh._side, dist = rand(0.35, 0.8) * D * k, drift = rand(-0.18, 0.18) * D * k, fall = rand(0.05, 0.22) * D * k;
-      const tx = g.nrm.x * s * dist + g.u.x * drift, ty = g.nrm.y * s * dist + g.u.y * drift + fall;
-      after(A(sh, [
-        { transform: 'translate3d(0,0,0)', opacity: 1, filter: 'blur(0px)' },
-        { transform: `translate3d(${tx.toFixed(0)}px, ${ty.toFixed(0)}px, ${(rand(-200, 120) * k).toFixed(0)}px) rotateX(${(rand(-70, 70) * k).toFixed(0)}deg) rotateY(${(rand(-70, 70) * k).toFixed(0)}deg) rotateZ(${(rand(-50, 50) * k).toFixed(0)}deg)`, opacity: 0, filter: 'blur(2px)' },
-      ], { duration: rand(950, 1500), delay: rand(40, 200), easing: 'cubic-bezier(.12,.62,.25,1)' }), () => sh.remove());
+      return wrap;
     });
-    await sleep(520); if (cancelled()) return;
-    // 세계가 두 조각으로 갈라져 멀어진다
-    halves.forEach(h => {
-      const s = h._side, off = D * 0.55 * k;
-      after(A(h, [
-        { transform: `${gapOf(s)} rotate(0deg)`, opacity: 1 },
-        { transform: `translate(${(g.nrm.x * s * off).toFixed(0)}px, ${(g.nrm.y * s * off).toFixed(0)}px) rotate(${s * 3 * k}deg)`, opacity: 0 },
-      ], { duration: 1300, easing: 'cubic-bezier(.5,0,.75,.4)' }), () => h.remove());
+    audio.mythicFall();
+    frags.forEach(f => {
+      after(A(f, [{ transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+                  { transform: `translate(${rand(-70, 70).toFixed(0)}px, ${(H * rand(0.8, 1.4) + 200).toFixed(0)}px) rotate(${rand(-38, 38).toFixed(0)}deg)`, opacity: 0 }],
+        { duration: rand(RM ? 900 : 1150, RM ? 1200 : 1750), delay: rand(0, 280), easing: 'cubic-bezier(.35,0,.9,.55)' }), () => f.remove());
     });
-    await sleep(900);
+    await sleep(760);
   }
 
-  // PHASE 4: 조각 하나가 돌아와 특성 카드가 된다. 카드 바탕(검정/하양)과 반대 색으로 이름을 쓴다
-  function createMythicTraitFragment(res, snap) {
-    const L = layer('m-layer');
-    const dark = Math.random() < 0.65;
-    const wrap = el('div', 'm-card-wrap ' + (dark ? 'dark' : 'light'), L);
-    const card = el('div', 'm-card', wrap);
-    const tex = el('div', 'm-tex', card);
-    tex.style.backgroundImage = `url("${snap}")`;
-    const name = el('div', 'm-name', card);
-    name.textContent = res.name;
-    const rule = el('div', 'm-rule', card);
-    const r = (a, b) => rand(a, b).toFixed(1);
-    card.style.clipPath = `polygon(${r(0, 4)}% ${r(2, 12)}%, ${r(28, 42)}% 0%, ${r(68, 82)}% ${r(0, 5)}%, 100% ${r(6, 20)}%, ${r(96, 100)}% ${r(76, 96)}%, ${r(58, 72)}% 100%, ${r(18, 32)}% ${r(95, 100)}%, 0% ${r(68, 88)}%)`;
-    wrap.style.opacity = '0';
-    name.style.opacity = '0';
-    return { layer: L, wrap, card, name, rule };
+  /* 9) 이름이 나오는 방식 10종 — 하나만 무작위로 */
+  function titleBox(L, text) {
+    const box = el('div', 'fx-namebox', L);
+    const name = el('div', 'fx-name m-title', box);
+    name.textContent = text;
+    return { box, name };
   }
-  async function enterCard(c) {
-    const left = Math.random() < 0.5, up = Math.random() < 0.5 ? -1 : 1;
-    const frames = RM
-      ? [{ opacity: 0, transform: 'scale(.96)' }, { opacity: 1, transform: 'none' }]
-      : [{ opacity: 0, transform: `translate(${(left ? -1 : 1) * vw() * 0.55}px, ${up * vh() * 0.34}px) rotateZ(${left ? -28 : 28}deg) rotateY(${left ? 68 : -68}deg) rotateX(18deg) scale(.8)` },
-         { opacity: 1, offset: 0.3 },
-         { opacity: 1, transform: 'translate(0px,0px) rotateZ(0deg) rotateY(0deg) rotateX(0deg) scale(1)' }];
-    await A(c.wrap, frames, { duration: RM ? 500 : 1250, easing: 'cubic-bezier(.16,.84,.24,1)' }).finished.catch(() => {});
+  function charSpans(name, text) {
+    name.replaceChildren(...[...text].map(ch => {
+      const s = document.createElement('span');
+      s.className = 'ch';                 // 띄어쓰기는 CSS white-space:pre 로 살린다
+      s.textContent = ch;
+      return s;
+    }));
+    return [...name.children];
   }
-  async function revealCardName(c) {
-    A(c.name, [{ opacity: 1, clipPath: 'inset(0 50% 0 50%)', filter: 'blur(6px)' }, { opacity: 1, clipPath: 'inset(0 0% 0 0%)', filter: 'blur(0px)' }], { duration: 760, easing: 'cubic-bezier(.3,0,.2,1)' });
-    A(c.rule, [{ opacity: 0, transform: 'scaleX(0)' }, { opacity: 0.45, transform: 'scaleX(1)' }], { duration: 900, delay: 250 });
-    await sleep(800);
-  }
-
-  // PHASE 5: 정확히 1개의 별이 이름 주변을 공전하고, 뒤로 얇은 궤적 하나가 따라온다
-  function createSingleOrbitStar(c) {
-    const r = c.wrap.getBoundingClientRect();
-    const cxp = r.left + r.width / 2, cyp = r.top + r.height / 2;
-    const rx = r.width / 2 + Math.max(22, vw() * 0.035), ry = r.height / 2 + Math.max(18, vh() * 0.03);
-    const pad = 14, W = 2 * (rx + pad), H = 2 * (ry + pad);
-    const box = el('div', 'orbit', c.layer);
-    Object.assign(box.style, { left: (cxp - W / 2) + 'px', top: (cyp - H / 2) + 'px', width: W + 'px', height: H + 'px', transform: `rotate(${rand(-8, -4).toFixed(1)}deg)`, opacity: '0' });
-    const d = `M ${pad} ${pad + ry} a ${rx} ${ry} 0 1 1 ${2 * rx} 0 a ${rx} ${ry} 0 1 1 ${-2 * rx} 0`;
-    const s = svg('svg', { class: 'orbit-svg', width: W, height: H }, box);
-    const period = RM ? 60000 : 6800;
-    // 궤적은 하나지만 끝으로 갈수록 옅어지게 세 겹의 길이로 그린다
-    [[6, 0.5], [14, 0.24], [24, 0.1]].forEach(([len, op]) => {
-      const p = svg('path', { d, pathLength: 100, class: 'orbit-trail' }, s);
-      p.style.strokeDasharray = `${len} ${100 - len}`;
-      p.style.opacity = op;
-      A(p, [{ strokeDashoffset: String(len) }, { strokeDashoffset: String(len - 100) }], { duration: period, iterations: Infinity, easing: 'linear', fill: 'none' });
-    });
-    const star = el('div', 'orbit-star', box);
-    star.style.offsetPath = `path("${d}")`;
-    A(star, [{ offsetDistance: '0%' }, { offsetDistance: '100%' }], { duration: period, iterations: Infinity, easing: 'linear', fill: 'none' });
-    A(box, [{ opacity: 0 }, { opacity: 1 }], { duration: 900 });
-  }
-  // 화면 가장자리에 남는 아주 약한 균열
-  function edgeCracks() {
-    const W = vw(), H = vh(), k = Math.min(W, H) / 800 + 0.3;
-    const s = svg('svg', { class: 'edge-cracks', viewBox: `0 0 ${W} ${H}`, preserveAspectRatio: 'none' }, stageEl);
-    [[0, rand(0.1, 0.3) * H, 1, 0], [W, rand(0.6, 0.9) * H, -1, 0], [rand(0.6, 0.85) * W, 0, 0, 1], [rand(0.15, 0.4) * W, H, 0, -1]].forEach(([x, y, dx, dy]) => {
-      let d = `M ${x.toFixed(1)} ${y.toFixed(1)}`;
-      for (let i = 0; i < 4; i++) {
-        const ang = Math.atan2(dy, dx) + rand(-0.6, 0.6), L = rand(16, 40) * k;
-        x += Math.cos(ang) * L; y += Math.sin(ang) * L;
-        d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+  const REVEALS = [
+    // 1. 글자가 하나씩 떨어진다
+    async (L, text) => {
+      const { name } = titleBox(L, text);
+      charSpans(name, text).forEach((c, i) => A(c, [{ opacity: 0, transform: `translateY(${-motion(90)}px)`, filter: 'blur(8px)' }, { opacity: 1, transform: 'none', filter: 'blur(0px)' }],
+        { duration: 520, delay: i * 70, easing: 'cubic-bezier(.2,1.2,.35,1)' }));
+      await sleep(600 + text.length * 70);
+    },
+    // 2. 위아래 두 조각이 맞물린다
+    async (L, text) => {
+      const { box, name } = titleBox(L, text);
+      name.style.opacity = '0';
+      const top = el('div', 'fx-name m-title m-half', box), bot = el('div', 'fx-name m-title m-half', box);
+      top.textContent = bot.textContent = text;
+      top.style.clipPath = 'inset(0 0 50% 0)'; bot.style.clipPath = 'inset(50% 0 0 0)';
+      A(top, [{ opacity: 0, transform: `translate(${-motion(120)}px, ${-motion(30)}px)` }, { opacity: 1, transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2,.9,.2,1)' });
+      A(bot, [{ opacity: 0, transform: `translate(${motion(120)}px, ${motion(30)}px)` }, { opacity: 1, transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2,.9,.2,1)' });
+      await sleep(780);
+      name.style.opacity = '1'; top.remove(); bot.remove();
+      A(name, [{ filter: 'brightness(2.4)' }, { filter: 'brightness(1)' }], { duration: 400 });
+      await sleep(300);
+    },
+    // 3. 뒤섞이다 확정된다
+    async (L, text) => {
+      const poolCh = '?!@#$%&*ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊㅋㅌㅍㅎ0123456789';
+      const { name } = titleBox(L, text);
+      const spans = charSpans(name, text);
+      for (let k = 0; k < 10; k++) {
+        spans.forEach((c, i) => { if (k < 9 - i) c.textContent = pick(poolCh); });
+        await sleep(70);
+        if (cancelled()) break;
       }
-      const p = svg('path', { d, pathLength: 1 }, s);
-      p.style.strokeDasharray = '1';
-      A(p, [{ strokeDashoffset: '1' }, { strokeDashoffset: '0' }], { duration: 900 });
-    });
-  }
+      spans.forEach((c, i) => { c.textContent = text[i]; });
+      A(name, [{ filter: 'brightness(2.2)' }, { filter: 'brightness(1)' }], { duration: 420 });
+      await sleep(380);
+    },
+    // 4. 획을 따라 그려진 뒤 채워진다
+    async (L, text) => {
+      const t = await strokeText(L, text, { fill: '#ffffff', stroke: '#cfd6e4', perChar: 460, stagger: 130 });
+      t.box.classList.add('m-strokebox');
+      await sleep(t.duration);
+    },
+    // 5. 내리꽂힌다
+    async (L, text) => {
+      const { name } = titleBox(L, text);
+      A(name, [{ opacity: 0, transform: 'scale(2.8)', filter: 'blur(10px)' }, { opacity: 1, offset: 0.5 }, { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' }],
+        { duration: 520, easing: 'cubic-bezier(.3,1.4,.4,1)' });
+      const ring = el('div', 'm-ring', L);
+      after(A(ring, [{ opacity: .8, transform: 'translate(-50%,-50%) scale(.2)' }, { opacity: 0, transform: 'translate(-50%,-50%) scale(1.6)' }], { duration: 900, easing: 'cubic-bezier(.1,.7,.3,1)' }), () => ring.remove());
+      flash('#ffffff', 0.35);
+      await sleep(900);
+    },
+    // 6. 타자기
+    async (L, text) => {
+      const { name } = titleBox(L, text);
+      const spans = charSpans(name, text);
+      spans.forEach(c => { c.style.opacity = '0'; });
+      const cur = el('span', 'm-cursor', name);
+      for (let i = 0; i < spans.length; i++) {
+        spans[i].style.opacity = '1';
+        name.append(cur);
+        await sleep(110);
+        if (cancelled()) break;
+      }
+      await sleep(420);
+      cur.remove();
+    },
+    // 7. 빛의 선이 지나가며 드러난다
+    async (L, text) => {
+      const { box, name } = titleBox(L, text);
+      const line = el('div', 'm-wipe', box);
+      A(name, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }], { duration: 760, easing: 'cubic-bezier(.5,0,.2,1)' });
+      after(A(line, [{ left: '-4%', opacity: 0 }, { opacity: 1, offset: .1 }, { opacity: 1, offset: .9 }, { left: '104%', opacity: 0 }], { duration: 820, easing: 'cubic-bezier(.5,0,.2,1)' }), () => line.remove());
+      await sleep(900);
+    },
+    // 8. 위아래에서 닫히며 나타난다
+    async (L, text) => {
+      const { box, name } = titleBox(L, text);
+      A(name, [{ clipPath: 'inset(50% 0 50% 0)', opacity: 0 }, { clipPath: 'inset(0 0 0 0)', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,.9,.2,1)' });
+      ['top', 'bottom'].forEach(side => {
+        const l = el('div', 'm-shutter ' + side, box);
+        after(A(l, [{ transform: 'scaleX(0)', opacity: 1 }, { transform: 'scaleX(1)', opacity: 1, offset: .45 }, { transform: 'scaleX(1)', opacity: 0 }], { duration: 900 }), () => l.remove());
+      });
+      await sleep(900);
+    },
+    // 9. 잔상이 모여든다
+    async (L, text) => {
+      const { box, name } = titleBox(L, text);
+      name.style.opacity = '0';
+      for (let i = 0; i < 4; i++) {
+        const gh = el('div', 'fx-name m-title m-ghost', box);
+        gh.textContent = text;
+        after(A(gh, [{ opacity: .5, transform: `translate(${rand(-1, 1) * motion(140)}px, ${rand(-1, 1) * motion(90)}px) scale(${rand(1.1, 1.4).toFixed(2)})`, filter: 'blur(6px)' },
+                     { opacity: 0, transform: 'none', filter: 'blur(0px)' }], { duration: 700, delay: i * 60, easing: 'cubic-bezier(.3,.8,.2,1)' }), () => gh.remove());
+      }
+      await sleep(620);
+      name.style.opacity = '1';
+      A(name, [{ filter: 'brightness(2.6)' }, { filter: 'brightness(1)' }], { duration: 420 });
+      await sleep(420);
+    },
+    // 10. 조각이 날아와 맞춰진다
+    async (L, text) => {
+      const { name } = titleBox(L, text);
+      charSpans(name, text).forEach((c, i) => A(c, [
+        { opacity: 0, transform: `translate(${rand(-1, 1) * motion(260)}px, ${rand(-1, 1) * motion(200)}px) rotate(${rand(-70, 70).toFixed(0)}deg) scale(${rand(0.5, 1.6).toFixed(2)})`, filter: 'blur(4px)' },
+        { opacity: 1, transform: 'none', filter: 'blur(0px)' }], { duration: 620, delay: i * 55, easing: 'cubic-bezier(.2,1.1,.3,1)' }));
+      await sleep(700 + text.length * 55);
+    },
+  ];
 
   async function playMythicEffect(res) {
     newRun();
-    openStage('t-mythic');
-    document.documentElement.classList.add('fx-mono');
-    audio.mythicDrone(3.1);
-    await sleep(260); if (cancelled()) return;                                  // 정적
-    stageEl.classList.add('dim');                                               // 아주 어두운 회색까지
-    await sleep(800); if (cancelled()) return;
-    audio.mythicMembrane(RM ? 2.2 : 1.9);
-    const mem = await playBlackWhiteTransition(RM ? 2200 : 1900);              // BLACK / WHITE 교차 → 충돌
+    const fake = fakePick();
+    const box = await playFakeTier(fake, 0.85);              // 1) 가짜 등급 연출
     if (cancelled()) return;
-    await sleep(110); if (cancelled()) return;                                  // 0.1초 정지
-    const g = slashGeometry();
-    const snap = mem.toDataURL('image/png');
-    const halves = splitHalves(snap, g);
-    mem.remove();
-    audio.mythicSlash();
-    await playMythicSlash(g); if (cancelled()) return;                          // 대각선 검기
-    const shards = createWorldFragments(snap, g, RM ? 8 : 12);
-    audio.mythicShards();
-    await animateFragments(halves, shards, g); if (cancelled()) return;         // 조각 분리 → 날아감
-    const card = createMythicTraitFragment(res, snap);
-    audio.mythicCard();
-    await enterCard(card); if (cancelled()) return;                             // 조각 하나가 중앙으로, 정면으로 회전
+    await sleep(520); if (cancelled()) return;
+    if (box) await questionMarks(box);                       // 2) ?? 가 하나씩
+    if (cancelled()) return;
+    await pick(GLITCHES)();                                  // 3) 글리치 10종 중 1개
+    if (cancelled()) return;
+    audio.mythicGlitch(0.5);
+    await toBlack();                                         // 4) 완전한 검정
+    if (cancelled()) return;
+    await bwFlicker();                                       // 5) 흑백 점멸
+    if (cancelled()) return;
+    const eye = await openEye();                             // 6) 눈이 천천히 뜸
+    if (cancelled()) return;
+    const cuts = await swordCuts();                          // 7) 칼질 1~10번
+    if (cancelled()) return;
+    const L = layer('m-layer');
     audio.mythicName();
-    await revealCardName(card); if (cancelled()) return;                        // 신화 특성 이름
-    await sleep(380); if (cancelled()) return;
-    createSingleOrbitStar(card);                                                // 별 1개 + 궤적 1개
-    audio.mythicStar();
-    edgeCracks();
-    dust(14);
-    await sleep(700); if (cancelled()) return;
+    const naming = pick(REVEALS)(L, res.name);               // 9) 이름 10종 중 1개
+    await fallFragments(cuts, eye);                          // 8) 파편이 떨어짐
+    await naming;
+    if (cancelled()) return;
+    await sleep(420);
     showMeta(res);
   }
 
@@ -921,6 +1135,6 @@
     playReelReveal, playStage, waitDismiss, closeStage, abort,
     playBasicEffect, playCommonEffect, playUncommonEffect,
     playRareEffect, playEpicEffect, playLegendaryEffect, playMythicEffect,
-    playBlackWhiteTransition, playMythicSlash, createWorldFragments, animateFragments, createMythicTraitFragment, createSingleOrbitStar,
+    playFakeTier, questionMarks, GLITCHES, bwFlicker, openEye, swordCuts, fallFragments, REVEALS,
   };
 })(window.TG = window.TG || {});

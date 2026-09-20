@@ -316,6 +316,68 @@
     poolEdited();
   });
 
+  /* ---------- 확률표를 .txt 파일로 저장 / 불러오기 ----------
+     사람이 메모장으로 열어 고칠 수 있는 형식으로 쓴다:
+       [등급] 확률(%)
+       특성 이름 (한 줄에 하나)                                */
+  function poolToText(pool) {
+    const lines = ['# 특성 뽑기 확률표', '# [등급] 뒤의 숫자가 확률(%)이고, 그 아래 줄들이 특성 이름입니다.', '# 줄 맨 앞에 #을 붙이면 설명으로 무시됩니다.', ''];
+    for (const t of TIERS) {
+      lines.push(`[${t.ko}] ${pool[t.id].prob}`);
+      pool[t.id].traits.forEach(n => lines.push(n));
+      lines.push('');
+    }
+    return lines.join('\r\n');
+  }
+  function textToPool(text) {
+    const out = {};
+    let cur = null;
+    for (const raw of text.split(/\r?\n/)) {
+      const line = raw.replace(/^﻿/, '').trim();
+      if (!line || line.startsWith('#')) continue;
+      const m = line.match(/^\[([^\]]+)\]\s*([0-9.]*)/);
+      if (m) {
+        const key = m[1].trim();
+        const tier = TIERS.find(t => t.ko === key || t.id === key.toLowerCase() || t.en === key.toUpperCase());
+        cur = tier ? tier.id : null;
+        if (cur) out[cur] = { prob: parseFloat(m[2]) || 0, traits: [] };
+        continue;
+      }
+      if (cur) line.split(',').map(s => s.trim()).filter(Boolean).forEach(n => out[cur].traits.push(n));
+    }
+    if (!Object.keys(out).length) throw new Error('등급을 찾지 못했어요');
+    TIERS.forEach(t => { if (!out[t.id]) out[t.id] = { prob: 0, traits: [] }; });   // 파일에 없는 등급은 0%
+    return TG.sanitizePool(out);
+  }
+  $('poolSave').addEventListener('click', () => {
+    const blob = new Blob(['﻿' + poolToText(TG.state.pool)], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = '특성 확률표.txt';
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast('확률표를 .txt 파일로 저장했어요');
+  });
+  $('poolLoad').addEventListener('change', e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      try {
+        TG.state.pool = textToPool(String(fr.result));
+        fillPanel();
+        poolEdited();
+        if (!TG.slot.busy) TG.slot.seed();
+        toast(`${file.name} 을(를) 불러왔어요`);
+      } catch {
+        toast('파일을 읽지 못했어요. [등급] 줄이 있는 .txt인지 확인해 주세요');
+      }
+    };
+    fr.onerror = () => toast('파일을 읽지 못했어요');
+    fr.readAsText(file, 'utf-8');
+  });
+
   /* ---------- 스킨 창 ---------- */
   const skinGrid = $('skinGrid'), editor = $('editor'), copyToCustom = $('copyToCustom');
   function thumbFor(s) {

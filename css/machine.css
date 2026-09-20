@@ -1,5 +1,7 @@
 /* 뽑기 장치: 몸체 · 간판 · 릴 창 · 결과판 · 레버 · 모양 변형 */
+/* 레버 폭만큼 왼쪽에 같은 여백을 둬서 본체(릴)가 화면 한가운데 오게 한다 */
 .machine{position:relative;display:flex;width:min(100%,830px)}
+.machine::before{content:"";flex:none;width:92px}
 .cabinet{
   flex:1;min-width:0;position:relative;overflow:hidden;
   display:grid;gap:clamp(12px,1.8vh,18px);padding:clamp(14px,2.2vw,22px);
@@ -90,6 +92,7 @@ kbd{font-family:inherit;font-size:11px;padding:1px 6px;border-radius:4px;backgro
 @keyframes invite{50%{box-shadow:0 8px 16px rgba(0,0,0,.5),inset 0 -5px 10px rgba(0,0,0,.35),0 0 0 8px color-mix(in srgb,var(--knob) 22%,transparent)}}
 
 @media (max-width:560px){
+  .machine::before{width:60px}
   .lever-wrap{width:60px}
   .lever-arm{width:34px;height:18px}
   .pivot{left:34px}
