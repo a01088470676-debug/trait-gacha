@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>연출 실험실 — 특성 뽑기</title>
+<meta name="description" content="신화 연출을 조각별로 따로 보는 페이지. 바꾸고 싶은 부분을 번호로 가리킬 수 있어요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Bungee&family=Cinzel:wght@500;700&family=Do+Hyeon&family=Gaegu:wght@700&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Jua&family=Noto+Serif+KR:wght@500;700;900&display=swap">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/traits.css">
+<link rel="stylesheet" href="css/effects.css">
+<style>
+  body{background:#0b0c10}
+  .lab{max-width:900px;margin:0 auto;padding:28px 16px calc(60px + env(safe-area-inset-bottom,0px));display:grid;gap:22px}
+  .lab h1{margin:0;font-family:var(--fx-font);font-size:26px;font-weight:700}
+  .lab h2{margin:0 0 8px;font-size:15px;font-weight:700;color:var(--ui-text)}
+  .lab .guide{margin:0;font-size:13.5px;line-height:1.7;color:var(--ui-muted);text-wrap:pretty}
+  .lab section{padding:14px 16px;border:1px solid var(--ui-line);border-radius:14px;background:#14161c}
+  .row{display:flex;flex-wrap:wrap;gap:8px}
+  .row button{padding:9px 13px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:#1d2029;color:var(--ui-text);font-size:13.5px;cursor:pointer}
+  .row button:hover{background:#262a36;border-color:rgba(255,255,255,.34)}
+  .row button b{color:var(--t5);margin-right:6px}
+  .big{border-color:color-mix(in srgb,var(--t6) 60%,transparent)!important;background:#23262f!important;font-weight:700}
+  .back{color:var(--ui-muted);font-size:13px}
+</style>
+</head>
+<body>
+<div class="bg" id="bg" aria-hidden="true" style="background:#0b0c10"></div>
+<div class="ambient-glow" id="ambientGlow" aria-hidden="true"></div>
+<div class="ambient-veil" id="ambientVeil" aria-hidden="true"></div>
+
+<main class="lab">
+  <h1>연출 실험실</h1>
+  <p class="guide">
+    신화 연출을 조각별로 따로 볼 수 있어요. 버튼을 누르면 그 부분만 재생됩니다.<br>
+    바꾸고 싶은 게 생기면 <b>번호로</b> 말해 주세요. 예) “글리치 7번 빼줘”, “이름 3번만 남기고 나머지 빼줘”, “눈 더 크게”, “칼질 더 천천히”.
+  </p>
+
+  <section>
+    <h2>전체</h2>
+    <div class="row"><button class="big" data-k="full">신화 연출 전부 보기</button></div>
+  </section>
+
+  <section>
+    <h2>1단계 · 가짜로 뜨는 등급</h2>
+    <div class="row" id="rowFake"></div>
+  </section>
+
+  <section>
+    <h2>2단계 · 이름 뒤 물음표</h2>
+    <div class="row"><button data-k="question">물음표만 보기</button></div>
+  </section>
+
+  <section>
+    <h2>3단계 · 글리치 (10종 중 하나가 무작위로 나옴)</h2>
+    <div class="row" id="rowGlitch"></div>
+  </section>
+
+  <section>
+    <h2>4~6단계 · 암전 → 눈 → 칼질</h2>
+    <div class="row">
+      <button data-k="flicker">흑백 점멸</button>
+      <button data-k="eye">눈이 떠짐</button>
+      <button data-k="cut">칼질 + 조각 떨어짐</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>7단계 · 이름이 나오는 방식 (10종 중 하나가 무작위로 나옴)</h2>
+    <div class="row" id="rowName"></div>
+  </section>
+
+  <section>
+    <h2>소리</h2>
+    <div class="row"><button id="sound">소리 켬</button></div>
+  </section>
+
+  <p class="back"><a href="index.html">← 뽑기 화면으로 돌아가기</a></p>
+</main>
+
+<div class="fx-stage" id="fxStage" role="dialog" aria-modal="true" aria-label="연출 미리보기" tabindex="-1" hidden></div>
+<canvas class="fx-canvas" id="fxCanvas" aria-hidden="true"></canvas>
+
+<script src="js/traitData.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/effects.js"></script>
+<script>
+(() => {
+  'use strict';
+  const TG = window.TG;
+  TG.state = { pool: TG.sanitizePool(TG.DEFAULT_POOL) };   // 가짜 등급이 고를 특성 목록
+  const GLITCH_NAMES = ['색 분리', '가로로 잘려 밀림', '깜빡임', '위아래로 흐름', '심하게 흔들림', '색 반전', '사각 블록', '버벅거림', '오류 문구', '글자 깨짐'];
+  const NAME_NAMES = ['한 글자씩 떨어짐', '위아래 조각이 맞물림', '뒤섞이다 확정', '획을 그린 뒤 채움', '내리꽂힘', '타자기', '빛의 선이 지나감', '위아래에서 닫힘', '잔상이 모여듦', '조각이 날아와 맞춰짐'];
+  const TIER_NAMES = ['기본', '커먼', '언커먼', '레어', '에픽', '레전더리'];
+  const fill = (id, names, kind) => {
+    document.getElementById(id).replaceChildren(...names.map((n, i) => {
+      const b = document.createElement('button');
+      b.dataset.k = kind; b.dataset.i = i;
+      b.innerHTML = `<b>${i + 1}</b>${n}`;
+      return b;
+    }));
+  };
+  fill('rowFake', TIER_NAMES, 'fake');
+  fill('rowGlitch', GLITCH_NAMES, 'glitch');
+  fill('rowName', NAME_NAMES, 'name');
+
+  let busy = false;
+  document.addEventListener('click', async e => {
+    const b = e.target.closest('button[data-k]');
+    if (!b || busy) return;
+    busy = true;
+    document.querySelectorAll('button[data-k]').forEach(x => { x.disabled = true; });
+    try { await TG.effects.preview(b.dataset.k, Number(b.dataset.i || 0)); }
+    catch (err) { console.error(err); }
+    document.querySelectorAll('button[data-k]').forEach(x => { x.disabled = false; });
+    busy = false;
+  });
+
+  const sound = document.getElementById('sound');
+  let muted = false;
+  sound.addEventListener('click', () => {
+    muted = !muted;
+    TG.audio.setMuted(muted);
+    sound.textContent = muted ? '소리 꺼짐' : '소리 켬';
+    if (!muted) TG.audio.unlock();
+  });
+})();
+</script>
+</body>
+</html>

@@ -104,13 +104,28 @@ html.fx-mono .bg,html.fx-mono .ambient-glow,html.fx-mono .stage{filter:grayscale
 /* 흑백 점멸 · 눈 · 파편 */
 .bw{position:absolute;inset:0;z-index:10;background:#fff}
 .eye-svg{position:absolute;left:0;top:0;z-index:2;width:100%;height:100%}
+.eye-glow{position:absolute;left:50%;top:50%;z-index:1;width:min(90vw,1100px);height:min(52vh,460px);transform:translate(-50%,-50%);pointer-events:none;background:radial-gradient(closest-side,rgba(255,255,255,.22),rgba(255,255,255,.05) 55%,transparent)}
+/* 검기: 칼끝(head)이 지나가며 자국(core)과 번짐(glow)을 남긴다 */
+.cut{position:absolute;z-index:6;height:0;transform-origin:0 50%;pointer-events:none}
+.cut-core{
+  position:absolute;left:0;top:-2px;width:100%;height:4px;transform-origin:0 50%;
+  background:linear-gradient(90deg,transparent,#fff 7%,#fff 93%,transparent);
+  -webkit-mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);mask-image:linear-gradient(90deg,transparent,#000 5%,#000 95%,transparent);
+  box-shadow:0 0 14px 2px rgba(255,255,255,.75);
+}
+.cut.strong .cut-core{height:5px;top:-2.5px;box-shadow:0 0 22px 4px rgba(255,255,255,.9)}
+.cut-glow{
+  position:absolute;left:0;top:-16px;width:100%;height:32px;transform-origin:0 50%;filter:blur(7px);
+  background:radial-gradient(60% 50% at 50% 50%,rgba(255,255,255,.7),rgba(255,255,255,0) 72%);
+}
+.cut.strong .cut-glow{top:-26px;height:52px;filter:blur(10px)}
+.cut-head{
+  position:absolute;top:-10px;width:54px;height:20px;margin-left:-27px;border-radius:50%;filter:blur(1px);
+  background:radial-gradient(closest-side,#fff,rgba(255,255,255,.45) 45%,transparent);
+}
+.cut.strong .cut-head{width:86px;height:30px;top:-15px;margin-left:-43px}
 .frag-wrap{position:absolute;z-index:4;will-change:transform;filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 6px 14px rgba(0,0,0,.8))}
 .frag{position:absolute;inset:0;background-color:#050505;background-repeat:no-repeat}
-.slash{
-  position:absolute;z-index:6;height:14px;margin-top:-7px;transform-origin:0 50%;
-  background:linear-gradient(to bottom,transparent 0%,rgba(0,0,0,.35) 22%,rgba(255,255,255,.95) 41%,#000 46%,#000 54%,rgba(255,255,255,.95) 59%,rgba(0,0,0,.35) 78%,transparent 100%);
-  filter:drop-shadow(0 0 7px rgba(0,0,0,.75));
-}
 /* 신화 이름: 10종 연출 공통 */
 .m-layer{z-index:7}
 .m-title{font-weight:900;font-size:clamp(38px,7.4vw,96px);letter-spacing:.1em;color:#fff;text-shadow:0 0 30px rgba(255,255,255,.35),0 0 90px rgba(255,255,255,.18)}

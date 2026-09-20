@@ -852,39 +852,100 @@
     f.remove();
   }
 
-  /* 6) 검정 배경에 흰 눈이 천천히 뜬다 */
+  /* 6) 검정 배경에 흰 눈이 천천히 뜬다
+        눈꺼풀 자체가 열리고(모양이 변함), 홍채에는 섬유·테두리·반사광이 들어간다.
+        조각낼 때 쓸 정지 그림도 같은 함수로 만든다(애니메이션 없이). */
+  function eyeMarkup(W, H, open, animated) {
+    const cx = W / 2, cy = H / 2;
+    const w = Math.min(W * 0.62, 820) / 2;
+    const h = Math.min(w * 0.62, H * 0.34);
+    const id = Math.floor(rand(100000, 999999));
+    // o = 0이면 감긴 선, 1이면 활짝
+    const lid = o => {
+      const up = h * o, lo = h * 0.74 * o;
+      return `M ${cx - w} ${cy} C ${(cx - w * 0.52).toFixed(1)} ${(cy - up * 1.1).toFixed(1)} ${(cx + w * 0.52).toFixed(1)} ${(cy - up * 1.1).toFixed(1)} ${cx + w} ${cy}`
+        + ` C ${(cx + w * 0.46).toFixed(1)} ${(cy + lo).toFixed(1)} ${(cx - w * 0.46).toFixed(1)} ${(cy + lo).toFixed(1)} ${cx - w} ${cy} Z`;
+    };
+    const upper = o => {
+      const up = h * o;
+      return `M ${cx - w} ${cy} C ${(cx - w * 0.52).toFixed(1)} ${(cy - up * 1.1).toFixed(1)} ${(cx + w * 0.52).toFixed(1)} ${(cy - up * 1.1).toFixed(1)} ${cx + w} ${cy}`;
+    };
+    const irisR = h * 0.86, pupilR = irisR * 0.4;
+    // 홍채 섬유
+    let fibers = '';
+    for (let i = 0; i < 72; i++) {
+      const a = i / 72 * Math.PI * 2, r0 = pupilR * (1.02 + Math.random() * 0.1), r1 = irisR * (0.86 + Math.random() * 0.13);
+      fibers += `<line x1="${(cx + Math.cos(a) * r0).toFixed(1)}" y1="${(cy + Math.sin(a) * r0).toFixed(1)}" x2="${(cx + Math.cos(a) * r1).toFixed(1)}" y2="${(cy + Math.sin(a) * r1).toFixed(1)}" stroke="#ffffff" stroke-width="${(0.6 + Math.random() * 1.4).toFixed(2)}" opacity="${(0.05 + Math.random() * 0.16).toFixed(2)}"/>`;
+    }
+    // 속눈썹
+    let lashes = '';
+    for (let i = 0; i < 9; i++) {
+      const t = 0.08 + i * 0.105, x = cx - w + 2 * w * t;
+      const y = cy - h * open * 1.03 * Math.sin(Math.PI * t) * 0.96;
+      const dir = (t - 0.5) * 2, L = 16 + Math.abs(dir) * 16;
+      lashes += `<path d="M ${x.toFixed(1)} ${y.toFixed(1)} q ${(dir * 10).toFixed(1)} ${(-L * 0.7).toFixed(1)} ${(dir * 22).toFixed(1)} ${(-L).toFixed(1)}" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" opacity=".85"/>`;
+    }
+    const anim = (values, dur, begin) => animated
+      ? `<animate attributeName="d" values="${values}" dur="${dur}s" begin="${begin}s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".25 .7 .2 1"/>` : '';
+    const o0 = 0.02, o1 = open;
+    const openDur = RM ? 1.3 : 2.1;
+    return `<svg xmlns="${SVGNS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="eye-svg">
+      <defs>
+        <radialGradient id="sc${id}" cx="50%" cy="46%" r="62%">
+          <stop offset="0%" stop-color="#ffffff"/><stop offset="70%" stop-color="#ededea"/><stop offset="100%" stop-color="#b9b9b4"/>
+        </radialGradient>
+        <radialGradient id="ir${id}" cx="42%" cy="38%" r="68%">
+          <stop offset="0%" stop-color="#3a3a3f"/><stop offset="55%" stop-color="#141417"/><stop offset="100%" stop-color="#050506"/>
+        </radialGradient>
+        <radialGradient id="hl${id}" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffffff" stop-opacity=".95"/><stop offset="60%" stop-color="#ffffff" stop-opacity=".35"/><stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="sh${id}" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#000000" stop-opacity=".6"/><stop offset="45%" stop-color="#000000" stop-opacity="0"/>
+        </linearGradient>
+        <clipPath id="cl${id}"><path d="${lid(animated ? o0 : o1)}">${anim(`${lid(o0)};${lid(o1)}`, openDur, 0)}</path></clipPath>
+      </defs>
+      <g clip-path="url(#cl${id})">
+        <path d="${lid(1)}" fill="url(#sc${id})"/>
+        <g class="eye-iris">
+          <circle cx="${cx}" cy="${cy}" r="${irisR.toFixed(1)}" fill="url(#ir${id})"/>
+          ${fibers}
+          <circle cx="${cx}" cy="${cy}" r="${(irisR * 0.99).toFixed(1)}" fill="none" stroke="#000000" stroke-width="${(irisR * 0.1).toFixed(1)}" opacity=".85"/>
+          <circle cx="${cx}" cy="${cy}" r="${(irisR * 0.62).toFixed(1)}" fill="none" stroke="#ffffff" stroke-width="1" opacity=".12"/>
+          <circle class="eye-pupil" cx="${cx}" cy="${cy}" r="${pupilR.toFixed(1)}" fill="#000000"/>
+          <circle cx="${(cx - irisR * 0.36).toFixed(1)}" cy="${(cy - irisR * 0.4).toFixed(1)}" r="${(irisR * 0.3).toFixed(1)}" fill="url(#hl${id})"/>
+          <circle cx="${(cx + irisR * 0.3).toFixed(1)}" cy="${(cy + irisR * 0.28).toFixed(1)}" r="${(irisR * 0.09).toFixed(1)}" fill="#ffffff" opacity=".55"/>
+        </g>
+        <rect x="${cx - w}" y="${cy - h * 1.2}" width="${2 * w}" height="${h * 1.5}" fill="url(#sh${id})"/>
+      </g>
+      <path d="${lid(animated ? o0 : o1)}" fill="none" stroke="#ffffff" stroke-width="2" opacity=".65">${anim(`${lid(o0)};${lid(o1)}`, openDur, 0)}</path>
+      <path d="${upper(animated ? o0 : o1)}" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round">${anim(`${upper(o0)};${upper(o1)}`, openDur, 0)}</path>
+      <g opacity="${animated ? 0 : 1}">${lashes}${animated ? `<animate attributeName="opacity" values="0;1" dur="0.6s" begin="${(openDur * 0.62).toFixed(2)}s" fill="freeze"/>` : ''}</g>
+      <path d="${upper(animated ? o0 : o1 * 1.18)}" fill="none" stroke="#ffffff" stroke-width="1" opacity=".13" transform="translate(0,${(-h * 0.22).toFixed(1)})">${anim(`${upper(o0)};${upper(o1 * 1.18)}`, openDur, 0)}</path>
+    </svg>`;
+  }
   async function openEye() {
-    const W = vw(), H = vh(), cx = W / 2, cy = H / 2;
-    const w = Math.min(W * 0.62, 780), h = Math.min(w * 0.4, H * 0.38);
-    const s = svg('svg', { class: 'eye-svg', xmlns: SVGNS, width: W, height: H, viewBox: `0 0 ${W} ${H}` }, stageEl);
-    const id = 'eyeclip' + Math.floor(rand(100000, 999999));
-    const dEye = `M ${cx - w / 2} ${cy} Q ${cx} ${cy - h} ${cx + w / 2} ${cy} Q ${cx} ${cy + h} ${cx - w / 2} ${cy} Z`;
-    const cp = svg('clipPath', { id }, svg('defs', {}, s));
-    svg('path', { d: dEye }, cp);
-    const g = svg('g', {}, s);
-    svg('path', { d: dEye, fill: '#f4f4f2' }, g);
-    const inner = svg('g', { 'clip-path': `url(#${id})` }, g);
-    const irisR = h * 0.74;
-    svg('circle', { cx, cy, r: irisR, fill: '#0a0a0b' }, inner);
-    svg('circle', { cx, cy, r: irisR, fill: 'none', stroke: '#ffffff', 'stroke-width': 2, opacity: 0.45 }, inner);
-    const pupil = svg('circle', { cx, cy, r: irisR * 0.45, fill: '#000000' }, inner);
-    svg('circle', { cx: cx - irisR * 0.32, cy: cy - irisR * 0.34, r: irisR * 0.15, fill: '#ffffff' }, inner);
-    svg('path', { d: `M ${cx - w / 2} ${cy} Q ${cx} ${cy - h} ${cx + w / 2} ${cy}`, fill: 'none', stroke: '#ffffff', 'stroke-width': 3 }, g);
-    g.style.transformOrigin = `${cx}px ${cy}px`;
-    pupil.style.transformBox = 'fill-box';
-    pupil.style.transformOrigin = 'center';
-    const d = RM ? 1300 : 2200;
+    const W = vw(), H = vh();
+    const open = 1;
+    const doc = new DOMParser().parseFromString(eyeMarkup(W, H, open, true), 'image/svg+xml');
+    const s = document.importNode(doc.documentElement, true);
+    stageEl.append(s);
+    const glow = el('div', 'eye-glow', stageEl);
+    const d = RM ? 1300 : 2100;
     audio.mythicEye(d / 1000);
-    A(g, [{ transform: 'scaleY(.02)' }, { transform: 'scaleY(1)' }], { duration: d, easing: 'cubic-bezier(.25,.7,.25,1)' });
-    A(pupil, [{ transform: 'scale(1.7)' }, { transform: 'scale(1)' }], { duration: d * 1.15, easing: 'cubic-bezier(.3,.6,.2,1)' });
-    A(inner, [{ transform: 'translateX(0)' }, { transform: `translateX(${motion(14).toFixed(0)}px)`, offset: 0.7 }, { transform: 'translateX(0)' }], { duration: d * 1.3, easing: 'ease-in-out' });
-    await sleep(d + 520);
-    g.style.transform = 'scaleY(1)';          // 조각 낼 때 쓸 수 있게 최종 상태를 남긴다
-    pupil.style.transform = 'scale(1)';
-    return s;
+    A(glow, [{ opacity: 0, transform: 'translate(-50%,-50%) scale(.6)' }, { opacity: 0.55, transform: 'translate(-50%,-50%) scale(1)' }], { duration: d });
+    const iris = s.querySelector('.eye-iris'), pupil = s.querySelector('.eye-pupil');
+    [iris, pupil].forEach(e => { e.style.transformBox = 'fill-box'; e.style.transformOrigin = 'center'; });
+    A(pupil, [{ transform: 'scale(2)' }, { transform: 'scale(1)' }], { duration: d * 1.2, easing: 'cubic-bezier(.3,.6,.2,1)' });
+    // 눈이 열린 뒤 천천히 시선이 움직인다
+    A(iris, [{ transform: 'translate(0,0)' }, { transform: `translate(${motion(18).toFixed(0)}px, ${motion(-6).toFixed(0)}px)`, offset: 0.75 }, { transform: 'translate(0,0)' }],
+      { duration: d * 1.6, easing: 'ease-in-out' });
+    await sleep(d + 600);
+    return { svg: s, glow, snapshot: () => eyeMarkup(W, H, open, false) };
   }
 
   /* 7) 무작위로 1~10번, 칼이 화면을 가른다 */
+  const along = (g, t) => ({ x: g.P0.x + g.u.x * g.len * t, y: g.P0.y + g.u.y * g.len * t });
   function cutGeometry() {
     const W = vw(), H = vh(), R = Math.hypot(W, H);
     const a = rand(0, Math.PI);
@@ -894,22 +955,53 @@
     return { P0: { x: c.x - u.x * R * 0.6, y: c.y - u.y * R * 0.6 }, P1: { x: c.x + u.x * R * 0.6, y: c.y + u.y * R * 0.6 },
       u, nrm, len: R * 1.2, ang: a * 180 / Math.PI };
   }
+  // 칼날이 지나간 자리에 불꽃이 튄다
+  function sparksAlong(g, n) {
+    for (let i = 0; i < count(n); i++) {
+      const p = along(g, rand(0.12, 0.88)), side = Math.random() < 0.5 ? 1 : -1, sp = rand(140, 460);
+      addMote({ x: p.x, y: p.y, vx: g.nrm.x * side * sp + g.u.x * rand(-70, 70), vy: g.nrm.y * side * sp + g.u.y * rand(-70, 70),
+        size: rand(0.9, 2.2), life: rand(0.3, 0.7), color: '#ffffff', glow: true });
+    }
+  }
+  // 칼끝이 먼저 지나가고, 그 뒤로 베인 자국이 남는다
+  function drawCut(g, strong) {
+    const ext = Math.hypot(vw(), vh()) * 0.06;
+    const wrap = el('div', 'cut', stageEl);
+    Object.assign(wrap.style, {
+      left: (g.P0.x - g.u.x * ext) + 'px', top: (g.P0.y - g.u.y * ext) + 'px',
+      width: (g.len + ext * 2) + 'px', transform: `rotate(${g.ang}deg)`,
+    });
+    const glow = el('div', 'cut-glow', wrap);
+    const core = el('div', 'cut-core', wrap);
+    const head = el('div', 'cut-head', wrap);
+    if (strong) { wrap.classList.add('strong'); }
+    const dur = RM ? 340 : (strong ? 210 : 120);
+    const ease = 'cubic-bezier(.55,0,.25,1)';
+    A(core, [{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: dur, easing: ease });
+    A(glow, [{ transform: 'scaleX(0)', opacity: 1 }, { transform: 'scaleX(1)', opacity: 0.8 }], { duration: dur, easing: ease });
+    A(head, [{ left: '0%', opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 1, offset: 0.82 }, { left: '100%', opacity: 0 }], { duration: dur * 1.12, easing: ease });
+    after(A(wrap, [{ opacity: 1 }, { opacity: 1, offset: 0.3 }, { opacity: 0 }], { duration: strong ? 1500 : 1000, delay: dur }), () => wrap.remove());
+    sparksAlong(g, strong ? 16 : 9);
+    // 베인 순간 화면이 칼날 방향으로 살짝 어긋난다
+    if (!RM) {
+      const k = strong ? 7 : 4;
+      A(stageEl, [{ transform: 'none' }, { transform: `translate(${(g.nrm.x * k).toFixed(1)}px, ${(g.nrm.y * k).toFixed(1)}px)`, offset: 0.3 }, { transform: 'none' }],
+        { duration: 170, easing: 'cubic-bezier(.3,0,.3,1)', fill: 'none' });
+    }
+  }
   async function swordCuts() {
     const n = 1 + Math.floor(Math.random() * 10);
     const lines = [];
-    const ext = Math.hypot(vw(), vh()) * 0.06;
     for (let i = 0; i < n; i++) {
       const g = cutGeometry();
       lines.push(g);
-      const s = el('div', 'slash', stageEl);
-      Object.assign(s.style, { left: (g.P0.x - g.u.x * ext) + 'px', top: (g.P0.y - g.u.y * ext) + 'px', width: (g.len + ext * 2) + 'px', transform: `rotate(${g.ang}deg) scaleX(0)` });
+      const last = i === n - 1;
       audio.mythicCut(i);
-      A(s, [{ transform: `rotate(${g.ang}deg) scaleX(0)` }, { transform: `rotate(${g.ang}deg) scaleX(1)` }], { duration: RM ? 320 : 110, easing: 'cubic-bezier(.7,0,.2,1)' });
-      after(A(s, [{ opacity: 1 }, { opacity: 1, offset: 0.35 }, { opacity: 0 }], { duration: 950, delay: 140 }), () => s.remove());
-      await sleep(RM ? 340 : (n > 6 ? 130 : 210));
+      drawCut(g, last);                                   // 마지막 한 번은 더 크고 느리게
+      await sleep(RM ? 340 : (last ? 420 : (n > 6 ? 120 : 200)));
       if (cancelled()) return lines;
     }
-    await sleep(240);
+    await sleep(220);
     return lines;
   }
 
@@ -935,7 +1027,6 @@
     }
     return out;
   }
-  const svgSnapshot = s => 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(s));
   async function fallFragments(lines, eye) {
     const W = vw(), H = vh();
     let polys = [[{ x: -2, y: -2 }, { x: W + 2, y: -2 }, { x: W + 2, y: H + 2 }, { x: -2, y: H + 2 }]];
@@ -943,8 +1034,9 @@
       if (polys.length > 40) break;
       polys = splitByLine(polys, g);
     }
-    const snap = svgSnapshot(eye);
-    eye.remove();
+    const snap = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(eye.snapshot());
+    eye.svg.remove();
+    eye.glow.remove();
     // 조각은 검은 화면이라 그냥 두면 보이지 않는다. 바깥 요소에 그림자를 줘서 잘린 가장자리가 빛나게 한다
     const frags = polys.map(poly => {
       const xs = poly.map(p => p.x), ys = poly.map(p => p.y);
@@ -1124,6 +1216,41 @@
     showMeta(res);
   }
 
+  /* ---------- 연출 실험실 (lab.html): 신화 연출을 조각별로 따로 보여 준다 ----------
+     말로 설명하기 어려울 때 "글리치 7번", "이름 3번"처럼 번호로 가리키기 위한 기능 */
+  async function preview(kind, index, name = '신의 가호') {
+    const res = { name, tier: TG.TIERS[6], level: 6, each: 0 };
+    if (kind === 'full') {
+      await playMythicEffect(res);
+      await waitDismiss({});
+      return closeStage();
+    }
+    newRun();
+    if (kind === 'fake') {
+      await playFakeTier({ level: index, name }, 0.85);
+    } else if (kind === 'question' || kind === 'glitch') {
+      openStage('t-unc');
+      requestAnimationFrame(() => stageEl.classList.add('dim'));
+      const L = layer();
+      const { box, name: n } = nameBox(L, name);
+      A(n, [{ opacity: 0 }, { opacity: 1 }], { duration: 400 });
+      await sleep(500);
+      if (kind === 'question') await questionMarks(box);
+      else { await questionMarks(box, 3); await GLITCHES[index](); }
+    } else {
+      openStage('t-mythic');
+      stageEl.classList.add('black');
+      if (kind === 'flicker') { await bwFlicker(); }
+      else if (kind === 'eye') { await openEye(); }
+      else if (kind === 'cut') { const eye = await openEye(); await fallFragments(await swordCuts(), eye); }
+      else if (kind === 'name') { await REVEALS[index](layer('m-layer'), name); }
+    }
+    if (cancelled()) return closeStage(true);
+    showMeta(res, '화면을 누르면 닫혀요');
+    await waitDismiss({ auto: 3500 });
+    return closeStage();
+  }
+
   // quick: 10회 뽑기에서는 도입(별 회전)을 조금 빠르게
   function playStage(res, quick) {
     const q = quick ? 0.7 : 1;
@@ -1139,6 +1266,6 @@
     playReelReveal, playStage, waitDismiss, closeStage, abort,
     playBasicEffect, playCommonEffect, playUncommonEffect,
     playRareEffect, playEpicEffect, playLegendaryEffect, playMythicEffect,
-    playFakeTier, questionMarks, GLITCHES, bwFlicker, openEye, swordCuts, fallFragments, REVEALS,
+    playFakeTier, questionMarks, GLITCHES, bwFlicker, openEye, swordCuts, fallFragments, REVEALS, preview,
   };
 })(window.TG = window.TG || {});
