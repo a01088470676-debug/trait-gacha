@@ -4,7 +4,9 @@
    각 등급 소리의 시작 시각은 effects.js의 연출 타이밍에 맞춰 두었다. 타이밍을 바꾸면 여기 t 값도 같이 바꾼다. */
 (function (TG) {
   'use strict';
-  let ac = null, dry = null, wet = null, muted = false;
+  let ac = null, dry = null, wet = null, rev = null, muted = false;
+  // 소리는 미리 예약해 두기 때문에, 끄거나 연출이 끝날 때 예약된 것까지 꺼야 한다
+  const live = new Set();
   const N = n => 440 * Math.pow(2, (n - 69) / 12);
 
   function ctx() {
@@ -19,7 +21,8 @@
       dry = ac.createGain(); dry.gain.value = 1; dry.connect(master);
       // 잔향: 짧은 딜레이 두 개를 되먹여 공간감만 살짝 준다
       wet = ac.createGain(); wet.gain.value = 1;
-      const d1 = ac.createDelay(1), d2 = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter(), rev = ac.createGain();
+      const d1 = ac.createDelay(1), d2 = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter();
+      rev = ac.createGain();
       d1.delayTime.value = 0.13; d2.delayTime.value = 0.21; fb.gain.value = 0.42;
       lp.type = 'lowpass'; lp.frequency.value = 3200; rev.gain.value = 0.5;
       wet.connect(d1); wet.connect(d2);
@@ -34,6 +37,33 @@
   function out(node, send) {
     node.connect(dry);
     if (send && wet) { const g = ac.createGain(); g.gain.value = send; node.connect(g); g.connect(wet); }
+  }
+  // 예약해 둔 소리까지 모두 끈다 (소리 끄기 · 연출 종료 · 건너뛰기)
+  function stopAll() {
+    if (!ac) return;
+    const now = ac.currentTime;
+    live.forEach(e => {
+      try {
+        e.g.gain.cancelScheduledValues(now);
+        e.g.gain.setValueAtTime(Math.max(0.0001, e.g.gain.value), now);
+        e.g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        e.node.stop(now + 0.15);          // 아직 시작 전인 소리는 아예 울리지 않는다
+      } catch {}
+    });
+    live.clear();
+    if (rev) {                            // 잔향 꼬리도 함께 끊는다
+      try {
+        rev.gain.cancelScheduledValues(now);
+        rev.gain.setValueAtTime(rev.gain.value, now);
+        rev.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        rev.gain.setValueAtTime(0.5, now + 0.4);
+      } catch {}
+    }
+  }
+  function track(node, g) {
+    const e = { node, g };
+    live.add(e);
+    node.addEventListener('ended', () => live.delete(e), { once: true });
   }
   function tone(freq, o = {}) {
     const a = ctx(); if (!a) return;
@@ -50,6 +80,7 @@
     if (lp) { const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = lp; osc.connect(f); node = f; }
     node.connect(g); out(g, send);
     osc.start(s); osc.stop(s + dur + 0.05);
+    track(osc, g);
   }
   function noise(o = {}) {
     const a = ctx(); if (!a) return;
@@ -68,6 +99,7 @@
     g.gain.exponentialRampToValueAtTime(0.0001, s + dur);
     src.connect(f); f.connect(g); out(g, send);
     src.start(s); src.stop(s + dur + 0.05);
+    track(src, g);
   }
   // 배음을 섞은 종소리
   function bell(f, o = {}) {
@@ -87,7 +119,9 @@
   const sub = (f, o = {}) => tone(f, Object.assign({ dur: 1.4, vol: 0.4, send: 0.1 }, o));
 
   TG.audio = {
-    setMuted(v) { muted = v; },
+    setMuted(v) { muted = v; if (v) stopAll(); },
+    stopAll,
+    get liveCount() { return live.size; },      // 예약돼 아직 울릴 소리의 개수 (확인용)
     unlock() { ctx(); },
 
     lever() { noise({ dur: 0.12, vol: 0.2, freq: 900 }); tone(120, { dur: 0.18, type: 'triangle', vol: 0.2, to: 55 }); },

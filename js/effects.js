@@ -32,6 +32,7 @@
     run.cancelled = true;
     [...run.timers].forEach(f => f());
     run.timers.clear();
+    audio.stopAll();                      // 예약된 소리까지 바로 끈다
     if (dismissFinish) dismissFinish();
   }
 
@@ -283,6 +284,7 @@
   }
   async function closeStage(instant) {
     if (stageEl.hidden) return;
+    audio.stopAll();                      // 화면이 닫히면 소리 꼬리도 같이 끊는다
     if (!instant) await A(stageEl, [{ opacity: 1 }, { opacity: 0 }], { duration: 380, easing: 'ease' }).finished.catch(() => {});
     stageEl.getAnimations({ subtree: true }).forEach(a => a.cancel());
     stageEl.hidden = true;
