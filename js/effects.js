@@ -246,7 +246,9 @@
     after(A(f, [{ opacity: RM ? strength * 0.35 : strength }, { opacity: 0 }], { duration: 260, easing: 'ease-out' }), () => f.remove());
   }
   // 등급 이름 · 확률은 중앙이 아니라 아래쪽 보조 정보로만
+  // 특성이 다 나온 시점이라, 남아 있는 소리는 여기서 서서히 끝낸다
   function showMeta(res, hint) {
+    audio.fadeOut(900);
     const foot = el('div', 'fx-foot', stageEl);
     const meta = el('div', 'fx-meta', foot);
     meta.textContent = `${res.tier.en}  ·  ${res.tier.ko}` + (res.each ? `  ·  ${fmtPct(res.each)}` : '');

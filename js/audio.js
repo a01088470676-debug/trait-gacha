@@ -5,6 +5,7 @@
 (function (TG) {
   'use strict';
   let ac = null, dry = null, wet = null, rev = null, muted = false;
+  const REV_GAIN = 0.4;
   // 소리는 미리 예약해 두기 때문에, 끄거나 연출이 끝날 때 예약된 것까지 꺼야 한다
   const live = new Set();
   const N = n => 440 * Math.pow(2, (n - 69) / 12);
@@ -21,13 +22,17 @@
       dry = ac.createGain(); dry.gain.value = 1; dry.connect(master);
       // 잔향: 짧은 딜레이 두 개를 되먹여 공간감만 살짝 준다
       wet = ac.createGain(); wet.gain.value = 1;
-      const d1 = ac.createDelay(1), d2 = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter();
+      // 딜레이 두 줄을 각각 따로 되먹인다. (예전처럼 하나의 되먹임을 두 줄에 함께 주면
+      //  한 바퀴 이득이 0.8을 넘어 소리가 몇 초씩 계속 울렸다)
+      const d1 = ac.createDelay(1), d2 = ac.createDelay(1), f1 = ac.createGain(), f2 = ac.createGain(), lp = ac.createBiquadFilter();
       rev = ac.createGain();
-      d1.delayTime.value = 0.13; d2.delayTime.value = 0.21; fb.gain.value = 0.42;
-      lp.type = 'lowpass'; lp.frequency.value = 3200; rev.gain.value = 0.5;
+      d1.delayTime.value = 0.13; d2.delayTime.value = 0.21;
+      f1.gain.value = 0.22; f2.gain.value = 0.18;
+      lp.type = 'lowpass'; lp.frequency.value = 3200; rev.gain.value = REV_GAIN;
       wet.connect(d1); wet.connect(d2);
+      d1.connect(f1); f1.connect(d1);
+      d2.connect(f2); f2.connect(d2);
       d1.connect(lp); d2.connect(lp);
-      lp.connect(fb); fb.connect(d1); fb.connect(d2);
       lp.connect(rev); rev.connect(master);
     }
     if (ac.state === 'suspended') ac.resume();
@@ -38,28 +43,30 @@
     node.connect(dry);
     if (send && wet) { const g = ac.createGain(); g.gain.value = send; node.connect(g); g.connect(wet); }
   }
-  // 예약해 둔 소리까지 모두 끈다 (소리 끄기 · 연출 종료 · 건너뛰기)
-  function stopAll() {
+  // 예약해 둔 소리와 잔향 꼬리를 ms 동안 줄여서 끈다
+  // (특성이 나오면 fadeOut으로 자연스럽게, 소리 끄기·건너뛰기는 stopAll로 즉시)
+  function fadeOut(ms) {
     if (!ac) return;
-    const now = ac.currentTime;
+    const now = ac.currentTime, t = Math.max(0.05, ms / 1000);
     live.forEach(e => {
       try {
         e.g.gain.cancelScheduledValues(now);
         e.g.gain.setValueAtTime(Math.max(0.0001, e.g.gain.value), now);
-        e.g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
-        e.node.stop(now + 0.15);          // 아직 시작 전인 소리는 아예 울리지 않는다
+        e.g.gain.exponentialRampToValueAtTime(0.0001, now + t);
+        e.node.stop(now + t + 0.05);      // 아직 시작 전인 소리는 아예 울리지 않는다
       } catch {}
     });
     live.clear();
-    if (rev) {                            // 잔향 꼬리도 함께 끊는다
+    if (rev) {
       try {
         rev.gain.cancelScheduledValues(now);
-        rev.gain.setValueAtTime(rev.gain.value, now);
-        rev.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-        rev.gain.setValueAtTime(0.5, now + 0.4);
+        rev.gain.setValueAtTime(Math.max(0.0001, rev.gain.value), now);
+        rev.gain.exponentialRampToValueAtTime(0.0001, now + t);
+        rev.gain.setValueAtTime(REV_GAIN, now + t + 0.25);
       } catch {}
     }
   }
+  const stopAll = () => fadeOut(120);
   function track(node, g) {
     const e = { node, g };
     live.add(e);
@@ -120,7 +127,7 @@
 
   TG.audio = {
     setMuted(v) { muted = v; if (v) stopAll(); },
-    stopAll,
+    stopAll, fadeOut,
     get liveCount() { return live.size; },      // 예약돼 아직 울릴 소리의 개수 (확인용)
     unlock() { ctx(); },
 

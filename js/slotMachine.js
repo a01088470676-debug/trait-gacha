@@ -160,6 +160,7 @@
       else await fx.playReelReveal(res, item, quick);
       markResult(res);
       setPlate(res);
+      audio.fadeOut(700);                 // 특성이 나왔으면 소리도 끝낸다
       return;
     }
     // 언커먼 이상: 느려지면서 주변 조명이 바뀌고, 릴은 뒤에서 계속 돌며 화면 중앙에서 공개
