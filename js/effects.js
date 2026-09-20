@@ -877,7 +877,7 @@
   /* 6) 검정 배경에 눈 두 개가 천천히 뜬다 (오드아이: 하나는 흰 눈, 하나는 검은 눈)
         눈꺼풀 자체가 열리고(모양이 변함), 홍채에는 섬유·테두리·반사광이 들어간다.
         조각낼 때 쓸 정지 그림도 같은 함수로 만든다(애니메이션 없이). */
-  function eyeOne(cx, cy, w, h, invert, animated, id, openDur, spin) {
+  function eyeOne(cx, cy, w, h, invert, animated, id, openDur, spinMs) {
     const lid = o => {
       const up = h * o, lo = h * 0.74 * o;
       return `M ${(cx - w).toFixed(1)} ${cy.toFixed(1)} C ${(cx - w * 0.52).toFixed(1)} ${(cy - up * 1.1).toFixed(1)} ${(cx + w * 0.52).toFixed(1)} ${(cy - up * 1.1).toFixed(1)} ${(cx + w).toFixed(1)} ${cy.toFixed(1)}`
@@ -890,24 +890,30 @@
     const irisR = h * 0.86, pupilR = irisR * 0.3;
     const pat = invert ? '#000000' : '#ffffff';        // 문양은 홍채와 반대색
     const C = cx.toFixed(1), CY = cy.toFixed(1);
-    // 문양: 120°마다 놓인 굽은 표식 3개 + 바깥 눈금 + 안쪽 고리 (천천히 돈다)
-    const mr = irisR * 0.17, md = irisR * 0.52;
-    let marks = '';
-    for (let i = 0; i < 3; i++) {
-      const deg = i * 120 + 90, a = deg * Math.PI / 180;
-      marks += `<g transform="translate(${(cx + Math.cos(a) * md).toFixed(1)},${(cy + Math.sin(a) * md).toFixed(1)}) rotate(${deg + 90})" fill="${pat}">`
-        + `<circle r="${mr.toFixed(1)}"/>`
-        + `<path d="M 0 ${(-mr).toFixed(1)} Q ${(mr * 3.4).toFixed(1)} ${(-mr * 0.8).toFixed(1)} ${(mr * 3.8).toFixed(1)} ${(mr * 1.3).toFixed(1)} Q ${(mr * 1.2).toFixed(1)} ${(-mr * 0.05).toFixed(1)} 0 ${mr.toFixed(1)} Z"/></g>`;
+    // 문양: 안에서 뻗는 빛살과 바깥 눈금 고리가 서로 반대로 돈다 (천체를 재는 신의 눈)
+    let rays = '';
+    for (let i = 0; i < 16; i++) {
+      const a = i * Math.PI / 8, long = i % 2 === 0;
+      const r0 = irisR * 0.42, r1 = irisR * (long ? 0.8 : 0.64), hw = irisR * (long ? 0.038 : 0.026);
+      const px = Math.cos(a), py = Math.sin(a);
+      rays += `<polygon points="${(cx + px * r0 - py * hw).toFixed(1)},${(cy + py * r0 + px * hw).toFixed(1)} `
+        + `${(cx + px * r1).toFixed(1)},${(cy + py * r1).toFixed(1)} `
+        + `${(cx + px * r0 + py * hw).toFixed(1)},${(cy + py * r0 - px * hw).toFixed(1)}" fill="${pat}" opacity="${long ? '.92' : '.6'}"/>`;
     }
     let ticks = '';
-    for (let i = 0; i < 12; i++) {
-      const a = i * Math.PI / 6, r0 = irisR * 0.86, r1 = irisR * 0.97;
-      ticks += `<line x1="${(cx + Math.cos(a) * r0).toFixed(1)}" y1="${(cy + Math.sin(a) * r0).toFixed(1)}" x2="${(cx + Math.cos(a) * r1).toFixed(1)}" y2="${(cy + Math.sin(a) * r1).toFixed(1)}" stroke="${pat}" stroke-width="${(irisR * 0.05).toFixed(2)}" opacity=".55"/>`;
+    for (let i = 0; i < 24; i++) {
+      const a = i * Math.PI / 12, big = i % 6 === 0;
+      const r0 = irisR * (big ? 0.82 : 0.88), r1 = irisR * 0.97;
+      ticks += `<line x1="${(cx + Math.cos(a) * r0).toFixed(1)}" y1="${(cy + Math.sin(a) * r0).toFixed(1)}" x2="${(cx + Math.cos(a) * r1).toFixed(1)}" y2="${(cy + Math.sin(a) * r1).toFixed(1)}" stroke="${pat}" stroke-width="${(irisR * (big ? 0.055 : 0.03)).toFixed(2)}" opacity="${big ? '.8' : '.45'}"/>`;
     }
+    // 동공 한가운데의 작은 별 (등급 연출을 관통하는 별 모양)
+    const sr = pupilR * 0.66, sw = pupilR * 0.17;
+    const glint = `<polygon points="${C},${(cy - sr).toFixed(1)} ${(cx + sw).toFixed(1)},${(cy - sw).toFixed(1)} ${(cx + sr).toFixed(1)},${CY} ${(cx + sw).toFixed(1)},${(cy + sw).toFixed(1)} ${C},${(cy + sr).toFixed(1)} ${(cx - sw).toFixed(1)},${(cy + sw).toFixed(1)} ${(cx - sr).toFixed(1)},${CY} ${(cx - sw).toFixed(1)},${(cy - sw).toFixed(1)}" fill="#ffffff" opacity=".9"/>`;
     const dir = invert ? -1 : 1;                       // 두 눈은 서로 반대로 돈다
-    const spinNow = `rotate(${(dir * (spin || 0)).toFixed(1)} ${C} ${CY})`;
-    const spinAnim = animated
-      ? `<animateTransform attributeName="transform" type="rotate" from="0 ${C} ${CY}" to="${dir * 360} ${C} ${CY}" dur="16s" repeatCount="indefinite"/>` : '';
+    const RING_S = 18, RAY_S = 11;                     // 고리와 빛살이 한 바퀴 도는 데 걸리는 초
+    const turn = (deg, secs) => animated
+      ? `<animateTransform attributeName="transform" type="rotate" from="0 ${C} ${CY}" to="${deg} ${C} ${CY}" dur="${secs}s" repeatCount="indefinite"/>` : '';
+    const at = (secs, sign) => `rotate(${(sign * dir * (spinMs || 0) / (secs * 1000) * 360).toFixed(1)} ${C} ${CY})`;
     const anim = values => animated
       ? `<animate attributeName="d" values="${values}" dur="${openDur}s" begin="0s" fill="freeze" calcMode="spline" keyTimes="0;1" keySplines=".25 .7 .2 1"/>` : '';
     const o0 = 0.02;
@@ -936,13 +942,18 @@
         <path d="${lid(1)}" fill="url(#sc${id})"/>
         <g class="eye-iris">
           <circle cx="${C}" cy="${CY}" r="${irisR.toFixed(1)}" fill="url(#ir${id})"/>
-          <g class="eye-sigil" transform="${spinNow}">
-            ${ticks}${marks}
-            <circle cx="${C}" cy="${CY}" r="${(irisR * 0.74).toFixed(1)}" fill="none" stroke="${pat}" stroke-width="${(irisR * 0.03).toFixed(2)}" opacity=".4"/>
-            ${spinAnim}
+          <g class="eye-sigil" transform="${at(RING_S, 1)}">
+            ${ticks}
+            <circle cx="${C}" cy="${CY}" r="${(irisR * 0.85).toFixed(1)}" fill="none" stroke="${pat}" stroke-width="${(irisR * 0.022).toFixed(2)}" opacity=".45"/>
+            ${turn(dir * 360, RING_S)}
+          </g>
+          <g class="eye-sigil" transform="${at(RAY_S, -1)}">
+            ${rays}
+            <circle cx="${C}" cy="${CY}" r="${(irisR * 0.38).toFixed(1)}" fill="none" stroke="${pat}" stroke-width="${(irisR * 0.03).toFixed(2)}" opacity=".5"/>
+            ${turn(-dir * 360, RAY_S)}
           </g>
           <circle cx="${C}" cy="${CY}" r="${(irisR * 0.99).toFixed(1)}" fill="none" stroke="${invert ? '#ffffff' : '#000000'}" stroke-width="${(irisR * 0.1).toFixed(1)}" opacity="${invert ? '.5' : '.85'}"/>
-          <circle class="eye-pupil" cx="${C}" cy="${CY}" r="${pupilR.toFixed(1)}" fill="#000000" stroke="${pat}" stroke-width="${(irisR * 0.05).toFixed(2)}"/>
+          <g class="eye-pupil"><circle cx="${C}" cy="${CY}" r="${pupilR.toFixed(1)}" fill="#000000" stroke="${pat}" stroke-width="${(irisR * 0.05).toFixed(2)}"/>${glint}</g>
           <ellipse cx="${(cx - irisR * 0.34).toFixed(1)}" cy="${(cy - irisR * 0.42).toFixed(1)}" rx="${(irisR * 0.3).toFixed(1)}" ry="${(irisR * 0.22).toFixed(1)}" fill="url(#hl${id})" opacity="${invert ? '.25' : '.4'}"/>
         </g>
         <rect x="${(cx - w).toFixed(1)}" y="${(cy - h * 1.2).toFixed(1)}" width="${(2 * w).toFixed(1)}" height="${(h * 1.5).toFixed(1)}" fill="url(#sh${id})"/>
@@ -951,15 +962,15 @@
       <path d="${upper(shown)}" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round">${anim(`${upper(o0)};${upper(1)}`)}</path>
       <path d="${upper(shown)}" fill="none" stroke="#ffffff" stroke-width="1" opacity=".13" transform="translate(0,${(-h * 0.22).toFixed(1)})">${anim(`${upper(o0)};${upper(1.18)}`)}</path>`;
   }
-  function eyeMarkup(W, H, animated, spin) {
+  function eyeMarkup(W, H, animated, spinMs) {
     const total = Math.min(W * 0.58, 860);
     const w = total * 0.2;                        // 한쪽 눈의 반폭
     const gap = total * 0.18;
     const h = Math.min(w * 0.66, H * 0.2);
     const cy = H / 2;
     const openDur = RM ? 1.3 : 2.1;
-    const left = eyeOne(W / 2 - w - gap / 2, cy, w, h, false, animated, 'a' + Math.floor(rand(1e5, 9e5)), openDur, spin);
-    const right = eyeOne(W / 2 + w + gap / 2, cy, w, h, true, animated, 'b' + Math.floor(rand(1e5, 9e5)), openDur, spin);
+    const left = eyeOne(W / 2 - w - gap / 2, cy, w, h, false, animated, 'a' + Math.floor(rand(1e5, 9e5)), openDur, spinMs);
+    const right = eyeOne(W / 2 + w + gap / 2, cy, w, h, true, animated, 'b' + Math.floor(rand(1e5, 9e5)), openDur, spinMs);
     return `<svg xmlns="${SVGNS}" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" class="eye-svg">${left}${right}</svg>`;
   }
   async function openEye() {
@@ -984,7 +995,7 @@
     });
     await sleep(d + 600);
     // 조각낼 때 쓸 정지 그림 — 문양이 그동안 돈 만큼 돌려 둔다 (조각나는 순간 문양이 튀지 않게)
-    return { svg: s, glow, snapshot: () => eyeMarkup(W, H, false, (performance.now() - t0) / 16000 * 360) };
+    return { svg: s, glow, snapshot: () => eyeMarkup(W, H, false, performance.now() - t0) };
   }
 
   /* 7) 무작위로 1~10번, 칼이 화면을 가른다 */
