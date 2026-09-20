@@ -1121,6 +1121,19 @@
     }
     return out;
   }
+  // 화면이 터지는 순간: 가운데 섬광 + 바깥으로 퍼지는 고리
+  function boomFlash(c, R) {
+    const fl = el('div', 'boom-flash', stageEl);
+    Object.assign(fl.style, { left: c.x + 'px', top: c.y + 'px' });
+    after(A(fl, [{ opacity: 0, transform: 'translate(-50%,-50%) scale(.15)' },
+                 { opacity: 1, transform: 'translate(-50%,-50%) scale(1)', offset: 0.12 },
+                 { opacity: 0, transform: 'translate(-50%,-50%) scale(1.7)' }], { duration: 620, easing: 'linear' }), () => fl.remove());
+    if (RM) return;
+    const ring = el('div', 'boom-ring', stageEl);
+    Object.assign(ring.style, { left: c.x + 'px', top: c.y + 'px', width: (R * 2) + 'px', height: (R * 2) + 'px' });
+    after(A(ring, [{ opacity: 0.9, transform: 'translate(-50%,-50%) scale(.05)' },
+                   { opacity: 0, transform: 'translate(-50%,-50%) scale(1.15)' }], { duration: 760, easing: 'cubic-bezier(.15,.8,.3,1)' }), () => ring.remove());
+  }
   async function fallFragments(lines, eye) {
     const W = vw(), H = vh();
     let polys = [[{ x: -2, y: -2 }, { x: W + 2, y: -2 }, { x: W + 2, y: H + 2 }, { x: -2, y: H + 2 }]];
@@ -1151,15 +1164,28 @@
         backgroundPosition: `0 0, ${-x0}px ${-y0}px`,
         clipPath: `polygon(${poly.map(p => `${(p.x - x0).toFixed(1)}px ${(p.y - y0).toFixed(1)}px`).join(',')})`,
       });
-      return wrap;
+      return { wrap, mx: (x0 + Math.max(...xs)) / 2, my: (y0 + Math.max(...ys)) / 2 };
     });
+    // 가운데에서 한 번 터지고, 그 힘으로 조각이 바깥으로 튄 뒤 떨어진다
+    const c = center(), R = Math.hypot(W, H) / 2;
     audio.mythicFall();
-    frags.forEach(f => {
-      after(A(f, [{ transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
-                  { transform: `translate(${rand(-70, 70).toFixed(0)}px, ${(H * rand(0.8, 1.4) + 200).toFixed(0)}px) rotate(${rand(-38, 38).toFixed(0)}deg)`, opacity: 0 }],
-        { duration: rand(RM ? 900 : 1150, RM ? 1200 : 1750), delay: rand(0, 280), easing: 'cubic-bezier(.35,0,.9,.55)' }), () => f.remove());
+    boomFlash(c, R);
+    burstMotes(c, { n: 52, colors: ['#ffffff', '#dbe9ff', '#b9d2ff'], speed: 900 });
+    frags.forEach(({ wrap, mx, my }) => {
+      let ux = mx - c.x, uy = my - c.y;
+      const dist = Math.hypot(ux, uy) || 1;
+      ux /= dist; uy /= dist;
+      const near = 1 - Math.min(1, dist / R);              // 가운데 조각일수록 세게 튄다
+      const push = motion(rand(120, 230) + near * 260);
+      const bx = ux * push, by = uy * push - motion(rand(50, 150));     // 살짝 떠올랐다가
+      const spin = rand(-150, 150);
+      after(A(wrap, [
+        { transform: 'translate(0,0) rotate(0deg) scale(1)', opacity: 1, easing: 'cubic-bezier(.06,.85,.25,1)' },
+        { transform: `translate(${bx.toFixed(0)}px, ${by.toFixed(0)}px) rotate(${(spin * 0.3).toFixed(0)}deg) scale(1.04)`, opacity: 1, offset: 0.2, easing: 'cubic-bezier(.4,0,.9,.6)' },
+        { transform: `translate(${(bx + rand(-60, 60)).toFixed(0)}px, ${(by + H * rand(1, 1.5) + 260).toFixed(0)}px) rotate(${spin.toFixed(0)}deg) scale(1)`, opacity: 0 }],
+        { duration: rand(RM ? 1000 : 1350, RM ? 1300 : 1950), delay: rand(0, 70), easing: 'linear' }), () => wrap.remove());
     });
-    await sleep(760);
+    await sleep(880);
   }
 
   /* 9) 이름이 나오는 방식 10종 — 하나만 무작위로 */

@@ -149,6 +149,9 @@
   -webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);
 }
 .cut-seam.strong::before{top:-6px;height:12px;box-shadow:0 0 22px rgba(176,216,255,.5)}
+/* 화면이 터지는 순간의 섬광과 퍼지는 고리 */
+.boom-flash{position:absolute;z-index:8;width:min(92vw,920px);aspect-ratio:1;pointer-events:none;background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(190,220,255,.45) 34%,transparent 70%)}
+.boom-ring{position:absolute;z-index:8;border-radius:50%;pointer-events:none;border:3px solid rgba(255,255,255,.75);box-shadow:0 0 30px rgba(180,215,255,.5),inset 0 0 30px rgba(180,215,255,.3)}
 .frag-wrap{position:absolute;z-index:4;will-change:transform;filter:drop-shadow(0 0 1px rgba(255,255,255,.55)) drop-shadow(0 6px 14px rgba(0,0,0,.8))}
 .frag{position:absolute;inset:0;background-color:#050505;background-repeat:no-repeat}
 /* 신화 이름: 10종 연출 공통 */
