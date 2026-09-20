@@ -947,10 +947,10 @@
       <path d="${upper(shown)}" fill="none" stroke="#ffffff" stroke-width="1" opacity=".13" transform="translate(0,${(-h * 0.22).toFixed(1)})">${anim(`${upper(o0)};${upper(1.18)}`)}</path>`;
   }
   function eyeMarkup(W, H, animated) {
-    const total = Math.min(W * 0.82, 1180);
-    const w = total * 0.215;                      // 한쪽 눈의 반폭
-    const gap = total * 0.15;
-    const h = Math.min(w * 0.66, H * 0.26);
+    const total = Math.min(W * 0.58, 860);
+    const w = total * 0.2;                        // 한쪽 눈의 반폭
+    const gap = total * 0.18;
+    const h = Math.min(w * 0.66, H * 0.2);
     const cy = H / 2;
     const openDur = RM ? 1.3 : 2.1;
     const left = eyeOne(W / 2 - w - gap / 2, cy, w, h, false, animated, 'a' + Math.floor(rand(1e5, 9e5)), openDur);
@@ -1010,7 +1010,7 @@
     });
     return box;
   }
-  function drawCut(g, strong) {
+  function drawCut(g, strong, many) {
     const wrap = cutBox('cut', g);
     if (strong) wrap.classList.add('strong');
     const glow = el('div', 'cut-glow', wrap);
@@ -1036,7 +1036,7 @@
     const seam = cutBox('cut-seam' + (strong ? ' strong' : ''), g);
     A(seam, [{ opacity: 0, transform: `rotate(${g.ang}deg) scaleX(.6)` }, { opacity: 1, transform: `rotate(${g.ang}deg) scaleX(1)` }], { duration: 260, delay: dur * 0.6 });
     cutSeams.push(seam);
-    sparksAlong(g, strong ? 18 : 10);
+    sparksAlong(g, strong ? 18 : (many ? 5 : 10));       // 많이 벨 때는 불꽃을 줄여 화면이 뭉개지지 않게
     // 베인 순간 화면이 칼날 방향으로 살짝 어긋난다
     if (!RM) {
       const k = strong ? 8 : 5;
@@ -1046,15 +1046,17 @@
   }
   function clearSeams() { cutSeams.splice(0).forEach(s => s.remove()); }
   async function swordCuts() {
-    const n = 1 + Math.floor(Math.random() * 10);
+    const n = 5 + Math.floor(Math.random() * 21);         // 5~25번
+    const many = n > 12;
+    const gap = n > 16 ? 58 : n > 10 ? 82 : n > 7 ? 110 : 165;
     const lines = [];
     for (let i = 0; i < n; i++) {
       const g = cutGeometry();
       lines.push(g);
       const last = i === n - 1;
       audio.mythicCut(i);
-      drawCut(g, last);                                   // 마지막 한 번은 더 굵게
-      await sleep(RM ? 300 : (last ? 520 : (n > 6 ? 105 : 170)));
+      drawCut(g, last, many);                             // 마지막 한 번은 더 굵게
+      await sleep(RM ? Math.max(140, gap * 1.5) : (last ? 520 : gap));
       if (cancelled()) { clearSeams(); return lines; }
     }
     await sleep(340);                                     // 베인 자국을 잠깐 보여 준다
@@ -1086,9 +1088,15 @@
   async function fallFragments(lines, eye) {
     const W = vw(), H = vh();
     let polys = [[{ x: -2, y: -2 }, { x: W + 2, y: -2 }, { x: W + 2, y: H + 2 }, { x: -2, y: H + 2 }]];
+    // 조각 수는 화면 크기에 맞춰 제한한다 (작은 화면에서 너무 잘게 쪼개지면 무겁다)
+    const maxFrag = Math.max(12, Math.min(48, Math.round(W / 26)));
     for (const g of lines) {
-      if (polys.length > 40) break;
+      if (polys.length >= maxFrag) break;
       polys = splitByLine(polys, g);
+    }
+    if (polys.length > maxFrag) {                         // 큰 조각만 남긴다
+      const area = p => Math.abs(p.reduce((s, q, i) => { const r = p[(i + 1) % p.length]; return s + q.x * r.y - r.x * q.y; }, 0)) / 2;
+      polys = polys.map(p => ({ p, a: area(p) })).sort((x, y) => y.a - x.a).slice(0, maxFrag).map(o => o.p);
     }
     const snap = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(eye.snapshot());
     eye.svg.remove();
